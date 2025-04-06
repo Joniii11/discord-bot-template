@@ -27,6 +27,8 @@ import {
   AwaitMessageCollectorOptionsParams,
   MessageComponentType,
   MappedInteractionTypes,
+  CacheType,
+  MessageEditOptions,
 } from "discord.js";
 import DiscordBot from "./DiscordBot.js";
 
@@ -112,17 +114,17 @@ export default class CommandExecutor<T extends ExecutorMode> {
 
   /**
    * Type guard: checks if this executor was created from an interaction
-   * @returns {boolean} True if interaction is defined
+   * @returns {this is CommandExecutor<"interaction">} True if interaction is defined
    */
-  public isInteraction(): this is { interaction: ChatInputCommandInteraction } & CommandExecutor<"interaction"> {
+  public isInteraction(): this is CommandExecutor<"interaction"> & { interaction: ChatInputCommandInteraction } {
     return this.interaction !== undefined;
   }
 
   /**
    * Type guard: checks if this executor was created from a message
-   * @returns {boolean} True if message is defined
+   * @returns {this is CommandExecutor<"message">} True if message is defined
    */
-  public isMessage(): this is { message: Message } & CommandExecutor<"message"> {
+  public isMessage(): this is CommandExecutor<"message"> & { message: Message } {
     return this.message !== undefined;
   }
 
@@ -132,6 +134,41 @@ export default class CommandExecutor<T extends ExecutorMode> {
    */
   public isDefault(): boolean {
     return this.interaction === undefined && this.message === undefined;
+  }
+
+  /**
+   * Gets the execution mode of this executor
+   * @returns {"interaction" | "message" | "unknown"} The execution mode
+   */
+  public getMode(): "interaction" | "message" | "unknown" {
+    if (this.isInteraction()) return "interaction";
+    if (this.isMessage()) return "message";
+    return "unknown";
+  }
+
+  /**
+   * Executes the appropriate callback based on the execution mode
+   * @param options - Object containing callbacks for different modes
+   * @returns The result of the executed callback
+   */
+  public withMode<T>({
+    interaction,
+    message,
+    fallback
+  }: {
+    interaction?: (executor: CommandExecutor<"interaction">) => T,
+    message?: (executor: CommandExecutor<"message">) => T,
+    fallback?: () => T
+  }): T {
+    if (this.isInteraction() && interaction) {
+      return interaction(this);
+    } else if (this.isMessage() && message) {
+      return message(this);
+    } else if (fallback) {
+      return fallback();
+    }
+    
+    throw new Error("No appropriate handler found for this CommandExecutor mode");
   }
 
   /**
@@ -213,9 +250,11 @@ export default class CommandExecutor<T extends ExecutorMode> {
     | OmitPartialGroupDMChannel<Message<boolean>>
   > {
     if (this.isInteraction()) {
+      // TypeScript now knows interaction is defined due to improved type guard
       this.replied = true;
       return this.interaction.reply(options as InteractionReplyOptions);
     } else if (this.isMessage()) {
+      // TypeScript now knows message is defined due to improved type guard
       return this.message.reply(options as string | MessagePayload | MessageReplyOptions);
     }
     throw new Error("No valid target to reply.");
@@ -280,32 +319,45 @@ export default class CommandExecutor<T extends ExecutorMode> {
   ): Promise<Message<boolean>>;
   
   /**
-   * Sends a new reply in message mode (equivalent to reply)
+   * Edits a specific message in message mode
+   * @param {Message} messageToEdit - The message to edit
    * @param {string | MessagePayload | MessageReplyOptions} options - Content or options
-   * @returns {Promise<Message>} The reply message
+   * @returns {Promise<Message>} The edited message
    */
   public async editReply(
     this: CommandExecutor<"message">,
-    options: string | MessagePayload | MessageReplyOptions
-  ): Promise<OmitPartialGroupDMChannel<Message<boolean>>>;
+    messageToEdit: Message<boolean>,
+    options: string | MessagePayload | MessageEditOptions
+  ): Promise<Message<boolean>>;
   
   /**
-   * Edits the reply or sends a new one, handling both interaction and message modes
-   * @param {string | MessagePayload | InteractionEditReplyOptions | MessageReplyOptions} options - Options for editing
-   * @returns {Promise<Message>} The edited or new message
+   * Edits the reply or specified message
+   * @param {string | MessagePayload | InteractionEditReplyOptions | Message} optionsOrMessage - Options for editing or message to edit
+   * @param {string | MessagePayload | MessageReplyOptions} [messageOptions] - Options when editing a specific message
+   * @returns {Promise<Message>} The edited message
    * @throws {Error} If no valid target to edit
    */
   public async editReply(
     this: CommandExecutor<ExecutorMode>,
-    options: string | MessagePayload | InteractionEditReplyOptions | MessageReplyOptions
-  ): Promise<Message<boolean> | OmitPartialGroupDMChannel<Message<boolean>>> {
+    optionsOrMessage: string | MessagePayload | InteractionEditReplyOptions | Message<boolean>,
+    messageOptions?: string | MessagePayload | MessageEditOptions
+  ): Promise<Message<boolean>> {
     if (this.isInteraction()) {
       if (!this.replied) {
         await this.deferReply();
       }
-      return this.interaction.editReply(options as InteractionEditReplyOptions);
+      return this.interaction.editReply(optionsOrMessage as string | MessagePayload | InteractionEditReplyOptions);
     } else if (this.isMessage()) {
-      return this.message.reply(options as string | MessagePayload | MessageReplyOptions);
+      // If first argument is a Message object, edit it
+      if (optionsOrMessage instanceof Message) {
+        if (!messageOptions) {
+          throw new Error("Message options are required when editing a message");
+        }
+        return optionsOrMessage.edit(messageOptions);
+      }
+      
+      // Otherwise, reply with a new message
+      return this.message.reply(optionsOrMessage as string | MessagePayload | MessageReplyOptions);
     }
     throw new Error("CommandExecutor: Both is not defined.");
   }

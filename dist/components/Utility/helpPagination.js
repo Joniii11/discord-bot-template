@@ -1,35 +1,31 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } from "discord.js";
-import { commandFile } from "../../utils/types/commandManager.js";
-export const data = commandFile({
-    data: new SlashCommandBuilder()
-        .setName("help")
-        .setDescription("Shows paginated help information about the bot's commands."),
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import { buttonPattern } from "../../utils/types/componentManager.js";
+// Button handler for help command pagination
+export const data = buttonPattern({
+    idPattern: /^help_pagination:(\d+):(\d+)$/, // Match help_pagination:page:totalPages
     options: {
-        slashOnly: true
+        cooldown: 1,
+        category: "Utility"
     },
-    execute: async (cmdExecutor) => {
-        const totalPages = 3; // In a real implementation, this would be dynamic
-        const currentPage = 1;
-        // Get initial help content
-        const initialContent = await getHelpPageContent(currentPage);
-        // Create embed
+    execute: async (client, interaction) => {
+        const [, pageStr, totalStr] = interaction.customId.split(":");
+        const currentPage = parseInt(pageStr);
+        const totalPages = parseInt(totalStr);
+        const helpData = await getHelpPageContent(currentPage);
         const embed = new EmbedBuilder()
             .setTitle(`Help Menu - Page ${currentPage}/${totalPages}`)
-            .setDescription(initialContent)
+            .setDescription(helpData)
             .setColor(0x0099FF)
             .setFooter({
             text: `Page ${currentPage} of ${totalPages}`
         })
             .setTimestamp();
-        // Create pagination buttons
-        const row = createPaginationRow(currentPage, totalPages);
-        await cmdExecutor.reply({
+        await interaction.update({
             embeds: [embed],
-            components: [row]
+            components: [createPaginationRow(currentPage, totalPages)]
         });
     }
 });
-// This would be replaced by actual help data in your implementation
 async function getHelpPageContent(page) {
     const helpPages = [
         "**Basic Commands**\n`/help` - Show this help menu\n`/ping` - Check the bot's latency\n`/info` - Get information about the bot",

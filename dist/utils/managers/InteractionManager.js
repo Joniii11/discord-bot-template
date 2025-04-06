@@ -21,6 +21,15 @@ export default class InteractionManager {
             const commandExecutor = new CommandExecutor({ client, interaction });
             await client.manager.commandManager.runCommand(commandExecutor);
         }
-        ;
+        else if (interaction.isButton() ||
+            interaction.isStringSelectMenu() ||
+            interaction.isUserSelectMenu() ||
+            interaction.isRoleSelectMenu() ||
+            interaction.isChannelSelectMenu() ||
+            interaction.isMentionableSelectMenu() ||
+            interaction.isModalSubmit()) {
+            // Handle component interactions
+            await client.manager.componentManager.handleInteraction(interaction);
+        }
     }
 }

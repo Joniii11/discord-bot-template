@@ -62,7 +62,6 @@ export default class DiscordBot extends Client {
     async init() {
         await this.manager.init();
         await this.start();
-        // this.on("messageCreate", (msg) => { if (msg.author.bot) return; msg.reply("MEOW")})
     }
     async start() {
         this.logger.info("Logging the bot in...");
