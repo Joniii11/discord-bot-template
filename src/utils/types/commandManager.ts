@@ -24,9 +24,10 @@ export interface BaseOptions {
 }
     
 
-export interface OptionsSlash extends BaseOptions {
+export interface OptionsSlash extends Omit<BaseOptions, 'aliases'> {
   slashOnly: true;
   messageOnly?: false;
+  aliases: never; // Slash commands don't use aliases, so force an empty array
 }
 
 export interface OptionsMsg extends BaseOptions {
@@ -45,25 +46,30 @@ export interface ImportedBaseCommand {
 
 export type CommandOptions = OptionsMsg | OptionsSlash | OptionsBoth;
 
-export function commandFile<T extends Omit<CommandOptions, "category" | "cooldown" | "aliases"> & Partial<CommandOptions>>(
+export type SlashOnlyOptions = { slashOnly: true, messageOnly?: false };
+export type MessageOnlyOptions = { slashOnly?: false, messageOnly: true };
+export type BothOptions = { slashOnly?: false, messageOnly?: false };
+
+export function commandFile<
+  T extends Partial<CommandOptions> & (SlashOnlyOptions | MessageOnlyOptions | BothOptions)> (
   command: {
     name?: string;
     data: SlashCommandOptionsOnlyBuilder | SlashCommandSubcommandBuilder;
     options?: T;
     execute: (
       commandExecutor: CommandExecutor<
-        T extends OptionsSlash
+        T extends SlashOnlyOptions
           ? "interaction"
-          : T extends OptionsMsg
+          : T extends MessageOnlyOptions
           ? "message"
           : ExecutorMode
       >
-    ) => Promise<unknown>;
+    ) => Promise<unknown> | unknown;
   }
 ): BaseCommand<
-  T extends OptionsSlash
+  T extends SlashOnlyOptions
     ? "interaction"
-    : T extends OptionsMsg
+    : T extends MessageOnlyOptions
     ? "message"
     : ExecutorMode
 > {
@@ -76,9 +82,7 @@ export function commandFile<T extends Omit<CommandOptions, "category" | "cooldow
         cooldown: command.options?.cooldown ?? 0,
         aliases: command.options?.aliases ?? []
     } as CommandOptions,
-    execute: command.execute as (
-      commandExecutor: CommandExecutor<ExecutorMode>
-    ) => Promise<unknown>,
+    execute: command.execute,
   };
 }
 

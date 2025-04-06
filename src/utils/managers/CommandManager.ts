@@ -114,7 +114,7 @@ export default class CommandManager {
         const allCommands = this.commands.entries();
 
         for (const cmd of allCommands) {
-            if (cmd[1].options?.aliases && cmd[1].options.aliases.length !== 0 && cmd[1].options.aliases.includes(commandName)) return cmd[1];
+            if (cmd[1].options?.aliases && !cmd[1].options?.slashOnly && cmd[1].options.aliases.length !== 0 && cmd[1].options.aliases.includes(commandName)) return cmd[1];
             continue;
         };
 
