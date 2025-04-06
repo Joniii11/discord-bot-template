@@ -19,7 +19,7 @@ export default class InteractionManager {
     async _eventRunner(client, interaction) {
         if (interaction.isChatInputCommand()) {
             const commandExecutor = new CommandExecutor({ client, interaction });
-            await this.client.manager.commandManager.runCommand(commandExecutor);
+            await client.manager.commandManager.runCommand(commandExecutor);
         }
         ;
     }

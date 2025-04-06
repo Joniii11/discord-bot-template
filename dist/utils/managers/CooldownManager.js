@@ -27,9 +27,12 @@ export default class CooldownManager {
     applyCooldown(commandName, userId, cooldownSeconds) {
         const remaining = this.checkCooldown(commandName, userId);
         if (remaining > 0) {
-            return false;
+            return { isCooldowned: true, remaining };
         }
         this.setCooldown(commandName, userId, cooldownSeconds);
-        return true;
+        return { isCooldowned: false };
     }
+    ;
 }
+;
+;

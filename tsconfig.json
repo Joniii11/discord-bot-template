@@ -1,0 +1,29 @@
+{
+  "compilerOptions": {
+      "target": "ESNext",
+      "moduleResolution": "NodeNext",
+      "module": "NodeNext",
+      "lib": [
+          "ES2022"
+      ],
+      "strict": true,
+      "rootDir": "src",
+      "outDir": "dist",
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "experimentalDecorators": true,
+      "emitDecoratorMetadata": true,
+      "skipLibCheck": true,
+      "noEmitHelpers": true,
+      "importHelpers": true,
+      "resolveJsonModule": true,
+      "typeRoots": [
+          "node_modules/@types",
+          "src/utils/types",
+        ],
+  },
+  "exclude": [],
+  "include": [
+      "src/**/*",
+  ]
+}

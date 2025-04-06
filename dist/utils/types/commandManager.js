@@ -6,8 +6,12 @@ export function commandFile(command) {
         options: {
             ...command.options,
             category: command.options?.category ?? "null",
-            cooldown: command.options?.cooldown ?? 0
+            cooldown: command.options?.cooldown ?? 0,
+            aliases: command.options?.aliases ?? []
         },
         execute: command.execute,
     };
 }
+;
+;
+;

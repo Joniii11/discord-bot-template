@@ -1,11 +1,16 @@
 import { levenshteinDistanceDamerau } from "../algorithm.js";
+import { missingArgumentsEmbed, noCommandFound, youAreCooldowned } from "../embeds/dynamic/CommandManager.js";
 import { readdir } from "node:fs/promises";
+import CooldownManager from "./CooldownManager.js";
+import { ApplicationCommandOptionType } from "discord.js";
 export default class CommandManager {
     commands = new Map();
     client;
     initialized = false;
+    cooldownManager;
     constructor(client) {
         this.client = client;
+        this.cooldownManager = new CooldownManager(client);
     }
     ;
     async init() {
@@ -58,14 +63,33 @@ export default class CommandManager {
     ;
     async runCommand(commandExecutor) {
         if (commandExecutor.getAuthor.bot)
-            return;
-        const commandName = "hel";
+            return console.log("is bot");
+        const { commandName, client, getAuthor } = commandExecutor;
         const command = this.getCommand(commandName);
         if (!command) {
-            const lookALike = this.lookALikeCommand(commandName);
-            return await commandExecutor.reply({ content: `Command not found.${lookALike.length !== 0 ? `Did you mean ${lookALike[0]}?` : ""}` });
+            const res = this.lookALikeCommand(commandName);
+            const embeds = [noCommandFound(client, commandName, res)];
+            console.log("couldn't find the commyndjkasdhbicoub-fdsa", commandName);
+            if (commandExecutor.isInteraction())
+                return commandExecutor.reply({ embeds, flags: "Ephemeral" });
+            else if (commandExecutor.isMessage())
+                return commandExecutor.reply({ embeds }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
+            return;
         }
         ;
+        if (command.options?.cooldown && command.options?.cooldown !== 0) {
+            const isCooldowned = this.cooldownManager.applyCooldown(commandName, getAuthor.id, command.options.cooldown);
+            console.log("snickers");
+            if (isCooldowned.isCooldowned && commandExecutor.isInteraction())
+                return commandExecutor.reply(({ embeds: [youAreCooldowned(client, isCooldowned.remaining)], flags: "Ephemeral" }));
+            else if (isCooldowned.isCooldowned && commandExecutor.isMessage())
+                return commandExecutor.reply({ embeds: [youAreCooldowned(client, isCooldowned.remaining)] }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
+        }
+        ;
+        if (this.handleArgs(command, commandExecutor))
+            return console.log(("UWU"));
+        console.log(("Shoulr dhahsidgvpai executed ASJOD"));
+        return command.execute(commandExecutor);
     }
     ;
     get getCommands() {
@@ -73,7 +97,17 @@ export default class CommandManager {
     }
     ;
     getCommand(commandName) {
-        return this.commands.get(commandName);
+        const command = this.commands.get(commandName);
+        if (command)
+            return command;
+        const allCommands = this.commands.entries();
+        for (const cmd of allCommands) {
+            if (cmd[1].options?.aliases && cmd[1].options.aliases.length !== 0 && cmd[1].options.aliases.includes(commandName))
+                return cmd[1];
+            continue;
+        }
+        ;
+        return undefined;
     }
     ;
     /**
@@ -97,5 +131,128 @@ export default class CommandManager {
             .slice(0, 3)
             .map(c => c.name);
         return candidate;
+    }
+    ;
+    handleArgs(command, commandExecutor) {
+        const commandArguments = command.data.toJSON().options;
+        if (!commandArguments || commandArguments.length === 0 || commandExecutor.isInteraction() || !commandExecutor.isMessage())
+            return false;
+        const processedArguments = [];
+        const missingArguments = [];
+        let index = 1;
+        let noMore = false;
+        let required = true;
+        for (const arg of commandArguments) {
+            if (noMore)
+                throw new TypeError(`YOU CAN ONLY HAVE ONE ARGUMENT OF TYPE STRING, sorry. To fix it make this command SlashCommandOnly BaseCommand.options.slashCommandOnly = true : ${command.name}`);
+            const currentArg = commandExecutor.arguments[index];
+            if (!currentArg) {
+                missingArguments.push({ type: arg.type, name: arg.name });
+                continue;
+            }
+            ;
+            if (!arg.required)
+                required = false;
+            if (arg.required && !required)
+                throw new TypeError(`FIX the order of the arguments you passed in for the command: ${command.name}`);
+            switch (arg.type) {
+                case ApplicationCommandOptionType.Boolean:
+                    {
+                        const processedArgument = Boolean(currentArg);
+                        processedArguments.push(`${processedArgument}`);
+                        continue;
+                    }
+                    ;
+                /*case ApplicationCommandOptionType.SubcommandGroup:
+                case ApplicationCommandOptionType.Subcommand: {
+                    
+                }*/
+                case ApplicationCommandOptionType.Channel:
+                    {
+                        const channelId = currentArg.replace(/<@#(\d+)>/, '$1');
+                        if (!channelId && arg.required) {
+                            missingArguments.push({ type: ApplicationCommandOptionType.Channel, name: arg.name });
+                            continue;
+                        }
+                        ;
+                        processedArguments.push(`${channelId}`);
+                        continue;
+                    }
+                    ;
+                case ApplicationCommandOptionType.Number:
+                case ApplicationCommandOptionType.Integer:
+                    {
+                        const integer = isNaN(Number(currentArg));
+                        if ((integer || typeof Number(currentArg) !== "number") && arg.required) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            continue;
+                        }
+                        processedArguments.push(currentArg);
+                        continue;
+                    }
+                    ;
+                case ApplicationCommandOptionType.String:
+                    {
+                        const processedString = processedArguments.join(commandExecutor.arguments.slice(index).join(" "));
+                        if (arg.choices && arg.choices.length !== 0) {
+                            let wasIncluded = false;
+                            for (const choice of arg.choices) {
+                                if (choice.value === processedString.trim().toLowerCase())
+                                    wasIncluded = true;
+                            }
+                            ;
+                            if (!wasIncluded) {
+                                missingArguments.push({ type: ApplicationCommandOptionType.String, name: arg.name, choices: { is: true, choices: arg.choices ?? [] } });
+                                continue;
+                            }
+                        }
+                        else if (arg.max_length) {
+                            if (arg.max_length < processedString.trim().length) {
+                                missingArguments.push(({ type: ApplicationCommandOptionType.String, max_length: true, name: arg.name }));
+                                continue;
+                            }
+                        }
+                        else if (arg.min_length) {
+                            if (arg.min_length > processedString.trim().length) {
+                                missingArguments.push({ type: ApplicationCommandOptionType.String, min_length: true, name: arg.name });
+                                continue;
+                            }
+                        }
+                        ;
+                        noMore = true;
+                        continue;
+                    }
+                    ;
+                case ApplicationCommandOptionType.User:
+                    {
+                        const userId = currentArg.replace(/<@(\d+)>/, '$1');
+                        if (!userId && arg.required) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            continue;
+                        }
+                        processedArguments.push(`${userId}`);
+                        continue;
+                    }
+                    ;
+                case ApplicationCommandOptionType.Role:
+                    {
+                        const roleId = currentArg.replace(/<@&(\d+)>/, '$1');
+                        if (!roleId && arg.required) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            continue;
+                        }
+                        processedArguments.push(`${roleId}`);
+                        continue;
+                    }
+                    ;
+            }
+            ;
+            index++;
+        }
+        ;
+        if (missingArguments.length > 0)
+            return commandExecutor.reply({ embeds: [missingArgumentsEmbed(commandExecutor.client, missingArguments)] });
+        commandExecutor.arguments = processedArguments;
+        return false;
     }
 }

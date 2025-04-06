@@ -1,11 +1,12 @@
 import dotenv from "dotenv";
 dotenv.config();
-const envKeys = ["TOKEN", "USE_SHARDING", "SHOW_DEBUG"];
-const { TOKEN, USE_SHARDING, SHOW_DEBUG } = getSanitzedConfig(getEnvConfig());
+const envKeys = ["TOKEN", "USE_SHARDING", "SHOW_DEBUG", "PREFIX"];
+const { TOKEN, USE_SHARDING, SHOW_DEBUG, PREFIX } = getSanitzedConfig(getEnvConfig());
 export default {
     token: TOKEN,
     useSharding: parseBoolean(USE_SHARDING),
-    showDebug: Boolean(SHOW_DEBUG)
+    showDebug: Boolean(SHOW_DEBUG),
+    prefix: PREFIX
 };
 function parseBoolean(value) {
     if (!value)

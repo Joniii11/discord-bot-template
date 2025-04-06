@@ -2,14 +2,22 @@ export default class CommandExecutor {
     interaction;
     message;
     client;
+    commandName = "";
+    arguments;
+    replied = false;
     constructor(options) {
         if ("interaction" in options) {
             this.interaction = options.interaction;
             this.message = undefined;
+            this.commandName = options.interaction.commandName;
+            this.replied = options.interaction.deferred;
         }
         else {
             this.message = options.message;
             this.interaction = undefined;
+            const [cmdName, ...args] = options.message.content.slice(options.client.config.prefix.length).trim().split(/ +/);
+            this.arguments = args ?? [];
+            this.commandName = cmdName;
         }
         this.client = options.client;
     }
@@ -51,8 +59,20 @@ export default class CommandExecutor {
         throw new Error("No valid target to reply.");
     }
     ;
+    // Implementation signature
+    async deferReply(options) {
+        if (!this.isInteraction())
+            return;
+        const result = await this.interaction.deferReply(options);
+        console.log(result);
+        if (result)
+            this.replied = true;
+        return result;
+    }
     async editReply(options) {
         if (this.isInteraction()) {
+            this.replied ? await this.deferReply() : null;
+            console.log((this.replied), "mauw");
             return this.interaction.editReply(options);
         }
         else if (this.isMessage()) {
