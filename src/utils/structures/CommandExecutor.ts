@@ -28,6 +28,8 @@ import {
   MessageComponentType,
   MappedInteractionTypes,
   MessageEditOptions,
+  GuildMember,
+  Guild,
 } from "discord.js";
 import DiscordBot from "./DiscordBot.js";
 
@@ -201,6 +203,45 @@ export default class CommandExecutor<T extends ExecutorMode> {
       return this.interaction.user;
     }
     throw new TypeError("Both message and interaction were not provided.");
+  }
+
+  /**
+   * Gets the GuildMember instance for the user who triggered this command
+   * @returns {GuildMember | null} The member or null if not in a guild
+   */
+  public getMember(): GuildMember | null {
+    if (this.isInteraction()) {
+      if (!this.interaction.guild) return null;
+      
+      // For interactions, member is sometimes already provided
+      if (this.interaction.member && this.interaction.member instanceof GuildMember) {
+        return this.interaction.member;
+      }
+      
+      // Try to get from guild if available
+      return this.interaction.guild.members.cache.get(this.getAuthor.id) || null;
+    } else if (this.isMessage()) {
+      if (!this.message.guild) return null;
+      
+      // For messages, member should be automatically cached
+      return this.message.member || null;
+    }
+    
+    return null;
+  }
+
+  /**
+   * Gets the Guild instance where this command was executed
+   * @returns {Guild | null} The guild or null if executed in DMs
+   */
+  public getGuild(): Guild | null {
+    if (this.isInteraction()) {
+      return this.interaction.guild;
+    } else if (this.isMessage()) {
+      return this.message.guild;
+    }
+    
+    return null;
   }
 
   /**

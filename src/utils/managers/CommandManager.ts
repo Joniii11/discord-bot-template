@@ -159,105 +159,122 @@ export default class CommandManager {
     }
 
     private async checkPermissions(command: BaseCommand, cmdExecutor: CommandExecutor<ExecutorMode>): Promise<true | string> {
-        if (!command.options?.permissions) return true;
+        // If no permissions are defined at all, allow the command
+        if (!command.options?.permissions && !command.options?.permissionCheck) return true;
         
-        const { permissions } = command.options;
-        
-        // Owner only check
-        if (permissions.ownerOnly && !this.client.config.ownerIds.includes(cmdExecutor.getAuthor.id)) {
-            return "This command can only be used by the bot owner.";
-        }
-        
-        // Guild only check
-        if (permissions.guildOnly) {
-            if (cmdExecutor.isMessage() && !cmdExecutor.message.guild) {
-                return "This command can only be used in servers.";
-            } else if (cmdExecutor.isInteraction() && !cmdExecutor.interaction.guild) {
-                return "This command can only be used in servers.";
-            }
-        }
-        
-        // DM only check
-        if (permissions.dmOnly) {
-            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
-                return "This command can only be used in direct messages.";
-            } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
-                return "This command can only be used in direct messages.";
+        // Check custom permission function if provided
+        if (command.options?.permissionCheck) {
+            try {
+                const result = await command.options.permissionCheck(cmdExecutor);
+                if (!result.allowed) {
+                    return result.reason || "You don't have permission to use this command.";
+                }
+            } catch (error) {
+                this.client.logger.error("Error in custom permission check:", error);
+                return "An error occurred while checking permissions.";
             }
         }
         
-        // Role checks
-        if (permissions.roleIds && permissions.roleIds.length > 0) {
-            let hasRole = false;
+        // Only check standard permissions if the custom check passed or wasn't provided
+        if (command.options?.permissions) {
+            const { permissions } = command.options;
             
-            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
-                const member = cmdExecutor.message.member;
-                if (member && typeof member.roles !== 'string' && member.roles.cache) {
-                    hasRole = member.roles.cache.some(r => 
-                        permissions.roleIds!.includes(r.id)
-                    );
-                }
-            } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
-                const member = cmdExecutor.interaction.member;
-                if (member && typeof member !== 'string' && member instanceof GuildMember) {
-                    hasRole = member.roles.cache.some(r => 
-                        permissions.roleIds!.includes(r.id)
-                    );
+            // Owner only check
+            if (permissions.ownerOnly && !this.client.config.ownerIds.includes(cmdExecutor.getAuthor.id)) {
+                return "This command can only be used by the bot owner.";
+            }
+            
+            // Guild only check
+            if (permissions.guildOnly) {
+                if (cmdExecutor.isMessage() && !cmdExecutor.message.guild) {
+                    return "This command can only be used in servers.";
+                } else if (cmdExecutor.isInteraction() && !cmdExecutor.interaction.guild) {
+                    return "This command can only be used in servers.";
                 }
             }
             
-            if (!hasRole) {
-                return "You don't have the required role to use this command.";
-            }
-        }
-        
-        // User permission checks
-        if (permissions.userPermissions && permissions.userPermissions.length > 0) {
-            let hasPermission = false;
-            
-            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
-                const member = cmdExecutor.message.member;
-                if (member && member.permissions instanceof PermissionsBitField) {
-                    hasPermission = member.permissions.has(
-                        permissions.userPermissions as PermissionResolvable
-                    );
-                }
-            } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
-                const member = cmdExecutor.interaction.member;
-                if (member && typeof member !== 'string' && member instanceof GuildMember) {
-                    hasPermission = member.permissions.has(
-                        permissions.userPermissions as PermissionResolvable
-                    );
+            // DM only check
+            if (permissions.dmOnly) {
+                if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                    return "This command can only be used in direct messages.";
+                } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                    return "This command can only be used in direct messages.";
                 }
             }
             
-            if (!hasPermission) {
-                return `You need the following permissions to use this command: ${permissions.userPermissions.join(", ")}`;
-            }
-        }
-        
-        // Bot permission checks
-        if (permissions.botPermissions && permissions.botPermissions.length > 0) {
-            let hasPermission = false;
-            
-            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
-                const botMember = cmdExecutor.message.guild.members.me;
-                if (botMember && botMember.permissions instanceof PermissionsBitField) {
-                    hasPermission = botMember.permissions.has(
-                        permissions.botPermissions as PermissionResolvable
-                    );
+            // Role checks
+            if (permissions.roleIds && permissions.roleIds.length > 0) {
+                let hasRole = false;
+                
+                if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                    const member = cmdExecutor.message.member;
+                    if (member && typeof member.roles !== 'string' && member.roles.cache) {
+                        hasRole = member.roles.cache.some(r => 
+                            permissions.roleIds!.includes(r.id)
+                        );
+                    }
+                } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                    const member = cmdExecutor.interaction.member;
+                    if (member && typeof member !== 'string' && member instanceof GuildMember) {
+                        hasRole = member.roles.cache.some(r => 
+                            permissions.roleIds!.includes(r.id)
+                        );
+                    }
                 }
-            } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
-                const botMember = cmdExecutor.interaction.guild.members.me;
-                if (botMember && botMember.permissions instanceof PermissionsBitField) {
-                    hasPermission = botMember.permissions.has(
-                        permissions.botPermissions as PermissionResolvable
-                    );
+                
+                if (!hasRole) {
+                    return "You don't have the required role to use this command.";
                 }
             }
             
-            if (!hasPermission) {
-                return `I need the following permissions to execute this command: ${permissions.botPermissions.join(", ")}`;
+            // User permission checks
+            if (permissions.userPermissions && permissions.userPermissions.length > 0) {
+                let hasPermission = false;
+                
+                if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                    const member = cmdExecutor.message.member;
+                    if (member && member.permissions instanceof PermissionsBitField) {
+                        hasPermission = member.permissions.has(
+                            permissions.userPermissions as PermissionResolvable
+                        );
+                    }
+                } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                    const member = cmdExecutor.interaction.member;
+                    if (member && typeof member !== 'string' && member instanceof GuildMember) {
+                        hasPermission = member.permissions.has(
+                            permissions.userPermissions as PermissionResolvable
+                        );
+                    }
+                }
+                
+                if (!hasPermission) {
+                    return `You need the following permissions to use this command: ${permissions.userPermissions.join(", ")}`;
+                }
+            }
+            
+            // Bot permission checks
+            if (permissions.botPermissions && permissions.botPermissions.length > 0) {
+                let hasPermission = false;
+                
+                if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                    const botMember = cmdExecutor.message.guild.members.me;
+                    if (botMember && botMember.permissions instanceof PermissionsBitField) {
+                        hasPermission = botMember.permissions.has(
+                            permissions.botPermissions as PermissionResolvable
+                        );
+                    }
+                } else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                    const botMember = cmdExecutor.interaction.guild.members.me;
+                    if (botMember && botMember.permissions instanceof PermissionsBitField) {
+                        hasPermission = botMember.permissions.has(
+                            permissions.botPermissions as PermissionResolvable
+                        );
+                    }
+                }
+                
+                if (!hasPermission) {
+                    return `I need the following permissions to execute this command: ${permissions.botPermissions.join(", ")}`;
+                }
             }
         }
         

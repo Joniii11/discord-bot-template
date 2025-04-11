@@ -11,6 +11,11 @@ import {
 import CommandExecutor, { ExecutorMode } from "../structures/CommandExecutor.js";
 import { __dirnamePop, __dirnamePopulator } from "../__dirname.js";
 
+export interface PermissionCheckResult {
+  allowed: boolean;
+  reason: string;
+}
+
 export interface CommandPermissions {
   userPermissions?: PermissionResolvable[];
   botPermissions?: PermissionResolvable[];
@@ -28,6 +33,7 @@ export interface CommandOptions {
   category?: string;
   slashOnly?: boolean;
   permissions?: CommandPermissions;
+  permissionCheck?: (commandExecutor: CommandExecutor<ExecutorMode>) => Promise<PermissionCheckResult> | PermissionCheckResult;
 }
 
 export interface BaseCommand<T extends ExecutorMode = ExecutorMode> {

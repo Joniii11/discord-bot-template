@@ -81,6 +81,15 @@ export default class LocaleManager {
     }
 
     /**
+     * Checks if a specific locale is available
+     * @param locale - The locale code to check
+     * @returns True if the locale is available, false otherwise
+     */
+    public isLocaleAvailable(locale: string): boolean {
+        return this.locales.has(locale);
+    }
+    
+    /**
      * Gets all available locales
      * @returns Array of available locale codes
      */
