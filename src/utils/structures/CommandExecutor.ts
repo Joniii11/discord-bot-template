@@ -27,7 +27,6 @@ import {
   AwaitMessageCollectorOptionsParams,
   MessageComponentType,
   MappedInteractionTypes,
-  CacheType,
   MessageEditOptions,
 } from "discord.js";
 import DiscordBot from "./DiscordBot.js";
@@ -56,7 +55,13 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * The message object if this executor was created from a message
    * @type {Message | undefined}
    */
-  public message!: T extends "message" ? Message : undefined
+  public message!: T extends "message" ? Message : undefined;
+
+  /**
+   * Parsed arguments as a named key-value object (for message commands)
+   * @type {Record<string, any>}
+   */
+  public parsedArgs: Record<string, any> = {};
 
   /**
    * Reference to the Discord bot client
@@ -104,9 +109,22 @@ export default class CommandExecutor<T extends ExecutorMode> {
       (this as CommandExecutor<"message">).message = options.message;
       (this as CommandExecutor<"message">).interaction = undefined;
 
-      const [cmdName, ...args] = options.message.content.slice(options.client.config.prefix.length).trim().split(/ +/);
-      (this as CommandExecutor<"message">).arguments = args ?? [];
-      this.commandName = cmdName;
+      // Better handling of prefix extraction
+      const prefixLength = options.client.config.prefix.length;
+      const messageContent = options.message.content.slice(prefixLength).trim();
+      
+      // Check if there's actual content after the prefix
+      if (messageContent.length === 0) {
+        this.commandName = "";
+        (this as CommandExecutor<"message">).arguments = [];
+      } else {
+        const [cmdName, ...args] = messageContent.split(/ +/);
+        this.commandName = cmdName;
+        (this as CommandExecutor<"message">).arguments = args ?? [];
+        
+        // Add debug log
+        options.client.logger.debug(`Extracted command: ${cmdName}, Args: [${args.join(", ")}]`);
+      }
     }
 
     this.client = options.client;
@@ -183,6 +201,214 @@ export default class CommandExecutor<T extends ExecutorMode> {
       return this.interaction.user;
     }
     throw new TypeError("Both message and interaction were not provided.");
+  }
+
+  /**
+   * Gets a string option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {string | null} The value of the option, or null if not provided
+   */
+  public getString(name: string, required: boolean = false): string | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getString(name, required);
+    } else if (this.isMessage()) {
+      const value = this.parsedArgs[name];
+      if (required && (value === undefined || value === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      return value !== undefined ? String(value) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a number option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {number | null} The value of the option, or null if not provided
+   */
+  public getNumber(name: string, required: boolean = false): number | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getNumber(name, required);
+    } else if (this.isMessage()) {
+      const value = this.parsedArgs[name];
+      if (required && (value === undefined || value === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      return value !== undefined ? Number(value) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets an integer option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {number | null} The value of the option, or null if not provided
+   */
+  public getInteger(name: string, required: boolean = false): number | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getInteger(name, required);
+    } else if (this.isMessage()) {
+      const value = this.parsedArgs[name];
+      if (required && (value === undefined || value === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      return value !== undefined ? Math.floor(Number(value)) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a boolean option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {boolean | null} The value of the option, or null if not provided
+   */
+  public getBoolean(name: string, required: boolean = false): boolean | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getBoolean(name, required);
+    } else if (this.isMessage()) {
+      const value = this.parsedArgs[name];
+      if (required && (value === undefined || value === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      return value !== undefined ? Boolean(value) : null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a user option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {User | null} The user, or null if not provided
+   */
+  public getUser(name: string, required: boolean = false): User | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getUser(name, required);
+    } else if (this.isMessage()) {
+      const userId = this.parsedArgs[name];
+      if (required && (userId === undefined || userId === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      if (!userId) return null;
+      
+      return this.client.users.cache.get(userId) || null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a channel option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {Channel | null} The channel, or null if not provided
+   */
+  public getChannel(name: string, required: boolean = false): any | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getChannel(name, required);
+    } else if (this.isMessage()) {
+      const channelId = this.parsedArgs[name];
+      if (required && (channelId === undefined || channelId === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      if (!channelId) return null;
+      
+      return this.client.channels.cache.get(channelId) || null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a role option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {Role | null} The role, or null if not provided
+   */
+  public getRole(name: string, required: boolean = false): any | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getRole(name, required);
+    } else if (this.isMessage()) {
+      const roleId = this.parsedArgs[name];
+      if (required && (roleId === undefined || roleId === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      if (!roleId) return null;
+      
+      // We need to get the guild from either the message or another context
+      const guild = this.isMessage() ? this.message.guild : null;
+      return guild ? guild.roles.cache.get(roleId) || null : null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets a mentionable option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {User | Role | null} The mentionable, or null if not provided
+   */
+  public getMentionable(name: string, required: boolean = false): any | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getMentionable(name, required);
+    } else if (this.isMessage()) {
+      const mentionableId = this.parsedArgs[name];
+      if (required && (mentionableId === undefined || mentionableId === null)) {
+        throw new Error(`Required option '${name}' is missing`);
+      }
+      if (!mentionableId) return null;
+      
+      // Try to get as user first, then as role
+      const guild = this.isMessage() ? this.message.guild : null;
+      const user = this.client.users.cache.get(mentionableId);
+      if (user) return user;
+      
+      return guild ? guild.roles.cache.get(mentionableId) || null : null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets an attachment option from command arguments
+   * @param {string} name - The name of the option to get
+   * @param {boolean} [required=false] - Whether the option is required
+   * @returns {Attachment | null} The attachment, or null if not provided
+   */
+  public getAttachment(name: string, required: boolean = false): any | null {
+    if (this.isInteraction()) {
+      return this.interaction.options.getAttachment(name, required);
+    } else if (this.isMessage()) {
+      // Message commands don't have a good way to handle attachments via arguments
+      // but we could look at message.attachments
+      if (required) {
+        throw new Error("Attachments are not supported in message commands via arguments");
+      }
+      return null;
+    }
+    return null;
+  }
+
+  /**
+   * Gets all options from command arguments as an object
+   * @returns {Record<string, any>} An object containing all options
+   */
+  public getOptions(): Record<string, any> {
+    if (this.isInteraction()) {
+      // Convert interaction options to a plain object
+      const options: Record<string, any> = {};
+      if (!this.interaction.isCommand()) return {};
+      
+      const data = this.interaction.options.data;
+      for (const option of data) {
+        options[option.name] = option.value;
+      }
+      return options;
+    } else if (this.isMessage()) {
+      return { ...this.parsedArgs };
+    }
+    return {};
   }
 
   // Reply method overloads

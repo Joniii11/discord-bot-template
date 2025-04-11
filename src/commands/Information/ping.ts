@@ -22,10 +22,11 @@ export const data = commandFile({
         const response = `Pong! 🏓\nBot Latency: ${ping}ms\nAPI Latency: ${apiPing}ms`;
         
         // withMode option
-        await cmdExecutor.withMode({
+        await cmdExecutor.editReply(msg, response);
+        /*await cmdExecutor.withMode({
             interaction: (exec) => exec.editReply(response),
             message: (exec) => exec.editReply(msg, response)
-        });
+        });*/
         
         // Alternatively, you can use type guards
         // if (cmdExecutor.isInteraction()) {

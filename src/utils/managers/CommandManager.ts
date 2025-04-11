@@ -6,7 +6,7 @@ import { BaseCommand, ImportedBaseCommand, MissingArguments } from "../types/com
 
 import { readdir } from "node:fs/promises";
 import CooldownManager from "./CooldownManager.js";
-import { ApplicationCommandOptionType, ApplicationCommandType, ContextMenuCommandInteraction } from "discord.js";
+import { ApplicationCommandOptionType } from "discord.js";
 
 export default class CommandManager {
     private commands: Map<string, BaseCommand> = new Map()
@@ -72,35 +72,37 @@ export default class CommandManager {
     };
 
     public async runCommand(commandExecutor: CommandExecutor<ExecutorMode>) {
-        if (commandExecutor.getAuthor.bot) return console.log("is bot");
+        if (commandExecutor.getAuthor.bot) return;
 
         const { commandName, client, getAuthor } = commandExecutor;
+        
+        if (!commandName || commandName.trim() === "") return;
+        
         const command = this.getCommand(commandName);
         if (!command) {
             const res = this.lookALikeCommand(commandName);
             const embeds = [noCommandFound(client, commandName, res)]
-
-            console.log("couldn't find the commyndjkasdhbicoub-fdsa", commandName)
 
             if (commandExecutor.isInteraction()) return commandExecutor.reply({ embeds, flags: "Ephemeral"})
             else if (commandExecutor.isMessage()) return commandExecutor.reply({ embeds }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
 
             return;
         };
+        
+        if (commandExecutor.isMessage() && command.options?.slashOnly) return;
 
         if (command.options?.cooldown && command.options?.cooldown !== 0) {
             const isCooldowned = this.cooldownManager.applyCooldown(commandName, getAuthor.id, command.options.cooldown);
-
-            console.log("snickers")
 
             if (isCooldowned.isCooldowned && commandExecutor.isInteraction()) return commandExecutor.reply(({ embeds: [youAreCooldowned(client, isCooldowned.remaining)], flags: "Ephemeral" }))
             else if (isCooldowned.isCooldowned && commandExecutor.isMessage()) return commandExecutor.reply({ embeds: [youAreCooldowned(client, isCooldowned.remaining)] }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
         };
 
-        if (this.handleArgs(command, commandExecutor)) return console.log(("UWU"));
+        if (commandExecutor.isMessage()) {
+            if (await this.handleArgs(command, commandExecutor)) return;
+        };
 
-        console.log(("Shoulr dhahsidgvpai executed ASJOD"))
-        return command.execute(commandExecutor)
+        return command.execute(commandExecutor);
     };
 
     public get getCommands() {
@@ -147,124 +149,196 @@ export default class CommandManager {
         return candidate
     };
     
-    private handleArgs(command: BaseCommand, commandExecutor: CommandExecutor<ExecutorMode>) {
+    private async handleArgs(command: BaseCommand, commandExecutor: CommandExecutor<ExecutorMode>) {
         const commandArguments = command.data.toJSON().options;
-        if (!commandArguments || commandArguments.length === 0 || commandExecutor.isInteraction() || !commandExecutor.isMessage()) return false;
+        if (!commandArguments || commandArguments.length === 0 || !commandExecutor.isMessage()) {
+            return false;
+        }
         
-        const processedArguments: string[] = [];
-        const missingArguments: MissingArguments[] = []
-
-        let index = 1;
-        let noMore = false;
-        let required = true;
-
-        for (const arg of commandArguments) {
-            if (noMore) throw new TypeError(`YOU CAN ONLY HAVE ONE ARGUMENT OF TYPE STRING, sorry. To fix it make this command SlashCommandOnly BaseCommand.options.slashCommandOnly = true : ${command.name}`)
-
-            const currentArg = commandExecutor.arguments[index];
-            if (!currentArg) {
+        const processedArgs: Record<string, any> = {};
+        const missingArguments: MissingArguments[] = [];
+        
+        let currentArgIndex = 0;
+        const userArgs = commandExecutor.arguments || [];
+        
+        const requiredArgs = commandArguments.filter(arg => arg.required);
+        const optionalArgs = commandArguments.filter(arg => !arg.required);
+        const allArgsInOrder = [...requiredArgs, ...optionalArgs];
+        
+        for (const arg of allArgsInOrder) {
+            if (currentArgIndex >= userArgs.length && !arg.required) {
+                continue;
+            }
+            
+            if (currentArgIndex >= userArgs.length && arg.required) {
                 missingArguments.push({ type: arg.type, name: arg.name });
                 continue;
-            };
-            if (!arg.required) required = false;
-            if (arg.required && !required) throw new TypeError(`FIX the order of the arguments you passed in for the command: ${command.name}`)
-
-            switch (arg.type) {
-                case ApplicationCommandOptionType.Boolean: {
-                    const processedArgument = Boolean(currentArg);
-                    
-                    processedArguments.push(`${processedArgument}`);
-                    continue;
-                };
-
-                /*case ApplicationCommandOptionType.SubcommandGroup:
-                case ApplicationCommandOptionType.Subcommand: {
-                    
-                }*/
-
-                case ApplicationCommandOptionType.Channel: {
-                    const channelId = currentArg.replace(/<@#(\d+)>/, '$1');
-                    if (!channelId && arg.required) {
-                        missingArguments.push({ type: ApplicationCommandOptionType.Channel, name: arg.name });
-                        continue;
-                    };
-
-                    processedArguments.push(`${channelId}`);
-                    continue;
-                };
-
-                case ApplicationCommandOptionType.Number:
-                case ApplicationCommandOptionType.Integer: {
-                    const integer = isNaN(Number(currentArg));
-                    if ((integer || typeof Number(currentArg) !== "number") && arg.required) {
-                        missingArguments.push({ type: arg.type, name: arg.name });
-                        continue;
-                    }
-
-                    processedArguments.push(currentArg);
-                    continue;
-                };
-
-                case ApplicationCommandOptionType.String: {
-                    const processedString = processedArguments.join(commandExecutor.arguments.slice(index).join(" "));
-
-                    if (arg.choices && arg.choices.length !== 0) {
-                        let wasIncluded = false;
+            }
+            
+            const currentArg = userArgs[currentArgIndex];
+            
+            try {
+                switch (arg.type) {
+                    case ApplicationCommandOptionType.Boolean:
+                        processedArgs[arg.name] = currentArg?.toLowerCase() === 'true' || 
+                                                  currentArg?.toLowerCase() === 'yes' || 
+                                                  currentArg === '1';
+                        currentArgIndex++;
+                        break;
                         
-                        for (const choice of arg.choices) {
-                            if (choice.value === processedString.trim().toLowerCase()) wasIncluded = true;
-                        };
-
-                        if (!wasIncluded)  {
-                            missingArguments.push({ type: ApplicationCommandOptionType.String, name: arg.name, choices: { is: true, choices: arg.choices ?? [] } });
+                    case ApplicationCommandOptionType.Channel:
+                        const channelMatch = currentArg.match(/<#(\d+)>/);
+                        const channelId = channelMatch ? channelMatch[1] : currentArg;
+                        
+                        const isValidChannelId = /^\d{17,20}$/.test(channelId);
+                        const channel = isValidChannelId ? commandExecutor.client.channels.cache.get(channelId) : null;
+                        
+                        if (!channel && arg.required) {
+                            missingArguments.push({ type: ApplicationCommandOptionType.Channel, name: arg.name });
+                            currentArgIndex++;
                             continue;
                         }
-                    } else if (arg.max_length) {
-                        if (arg.max_length < processedString.trim().length) {
-                            missingArguments.push(({ type: ApplicationCommandOptionType.String, max_length: true, name: arg.name }))
+                        
+                        processedArgs[arg.name] = channelId;
+                        currentArgIndex++;
+                        break;
+                        
+                    case ApplicationCommandOptionType.Integer:
+                    case ApplicationCommandOptionType.Number:
+                        const numValue = Number(currentArg);
+                        if (isNaN(numValue) && arg.required) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            currentArgIndex++;
                             continue;
                         }
-                    } else if (arg.min_length) {
-                        if (arg.min_length > processedString.trim().length) {
-                            missingArguments.push({ type: ApplicationCommandOptionType.String, min_length: true, name: arg.name });
+                        
+                        if ('min_value' in arg && numValue < arg.min_value!) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            currentArgIndex++;
                             continue;
                         }
-                    };
-
-                    noMore = true;
-                    continue;
-                };
-
-                case ApplicationCommandOptionType.User: {
-                    const userId = currentArg.replace(/<@(\d+)>/, '$1');
-                    if (!userId && arg.required) {
-                        missingArguments.push({ type: arg.type, name: arg.name });
+                        
+                        if ('max_value' in arg && numValue > arg.max_value!) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            currentArgIndex++;
+                            continue;
+                        }
+                        
+                        processedArgs[arg.name] = numValue;
+                        currentArgIndex++;
+                        break;
+                        
+                    case ApplicationCommandOptionType.String:
+                        let stringValue: string;
+                        const isLastRequiredArg = requiredArgs.indexOf(arg) === requiredArgs.length - 1;
+                        
+                        if (isLastRequiredArg && arg === allArgsInOrder[allArgsInOrder.length - 1]) {
+                            stringValue = userArgs.slice(currentArgIndex).join(" ");
+                            currentArgIndex = userArgs.length;
+                        } else {
+                            stringValue = currentArg;
+                            currentArgIndex++;
+                        }
+                        
+                        if (arg.choices && arg.choices.length > 0) {
+                            const validChoices = arg.choices.map(c => c.value);
+                            if (!validChoices.includes(stringValue.toLowerCase()) && arg.required) {
+                                missingArguments.push({ 
+                                    type: ApplicationCommandOptionType.String, 
+                                    name: arg.name, 
+                                    choices: { is: true, choices: arg.choices } 
+                                });
+                                continue;
+                            }
+                        }
+                        
+                        if ('max_length' in arg && stringValue.length > arg.max_length!) {
+                            missingArguments.push({ 
+                                type: ApplicationCommandOptionType.String, 
+                                max_length: true, 
+                                name: arg.name 
+                            });
+                            continue;
+                        }
+                        
+                        if ('min_length' in arg && stringValue.length < arg.min_length!) {
+                            missingArguments.push({ 
+                                type: ApplicationCommandOptionType.String, 
+                                min_length: true, 
+                                name: arg.name 
+                            });
+                            continue;
+                        }
+                        
+                        processedArgs[arg.name] = stringValue;
+                        break;
+                        
+                    case ApplicationCommandOptionType.User:
+                        const userMatch = currentArg.match(/<@!?(\d+)>/);
+                        const userId = userMatch ? userMatch[1] : currentArg;
+                        
+                        const isValidUserId = /^\d{17,20}$/.test(userId);
+                        let user = null;
+                        
+                        if (isValidUserId) {
+                            try {
+                                user = await commandExecutor.client.users.fetch(userId).catch(() => null);
+                            } catch (err) {
+                                // Failed to fetch user
+                            }
+                        }
+                        
+                        if (arg.required && !user) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            currentArgIndex++;
+                            continue;
+                        }
+                        
+                        processedArgs[arg.name] = userId;
+                        currentArgIndex++;
+                        break;
+                        
+                    case ApplicationCommandOptionType.Role:
+                        const roleMatch = currentArg.match(/<@&(\d+)>/);
+                        const roleId = roleMatch ? roleMatch[1] : currentArg;
+                        
+                        const isValidRoleId = /^\d{17,20}$/.test(roleId);
+                        let role = null;
+                        
+                        if (isValidRoleId && commandExecutor.message?.guild) {
+                            try {
+                                role = await commandExecutor.message.guild.roles.fetch(roleId).catch(() => null);
+                            } catch (err) {
+                                // Failed to fetch role
+                            }
+                        }
+                        
+                        if (arg.required && !role) {
+                            missingArguments.push({ type: arg.type, name: arg.name });
+                            currentArgIndex++;
+                            continue;
+                        }
+                        
+                        processedArgs[arg.name] = roleId;
+                        currentArgIndex++;
+                        break;
+                        
+                    default:
+                        currentArgIndex++;
                         continue;
-                    }
-
-                    processedArguments.push(`${userId}`);
-                    continue;
-                };
-
-                case ApplicationCommandOptionType.Role: {
-                    const roleId = currentArg.replace(/<@&(\d+)>/, '$1');
-                    if (!roleId && arg.required) {
-                        missingArguments.push({ type: arg.type, name: arg.name });
-                        continue;
-                    }
-
-                    processedArguments.push(`${roleId}`);
-                    continue;
-                };
-            };
-
-            index++;
-        };
-
-        if (missingArguments.length > 0) return commandExecutor.reply({ embeds: [missingArgumentsEmbed(commandExecutor.client, missingArguments)] });
-
-        commandExecutor.arguments = processedArguments;
-
+                }
+            } catch (error) {
+                missingArguments.push({ type: arg.type, name: arg.name });
+                currentArgIndex++;
+                continue;
+            }
+        }
+        
+        if (missingArguments.length > 0) {
+            return commandExecutor.reply({ embeds: [missingArgumentsEmbed(commandExecutor.client, missingArguments)] });
+        }
+        
+        commandExecutor.parsedArgs = processedArgs;
         return false;
     }
 }

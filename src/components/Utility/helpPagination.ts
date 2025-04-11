@@ -3,15 +3,16 @@ import { buttonPattern } from "../../utils/types/componentManager.js";
 
 // Button handler for help command pagination
 export const data = buttonPattern({
+  id: "help_pagination",
   idPattern: /^help_pagination:(\d+):(\d+)$/,  // Match help_pagination:page:totalPages
   options: {
     cooldown: 1,
     category: "Utility"
   },
-  execute: async (client, interaction: ButtonInteraction) => {
-    const [, pageStr, totalStr] = interaction.customId.split(":");
-    const currentPage = parseInt(pageStr);
-    const totalPages = parseInt(totalStr);
+  execute: async (client, interaction, params) => {
+    // Params is a simple string array with the captured groups
+    const currentPage = parseInt(params[0]);
+    const totalPages = parseInt(params[1]);
     
     const helpData = await getHelpPageContent(currentPage);
     
