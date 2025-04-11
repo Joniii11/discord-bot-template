@@ -1,5 +1,5 @@
 import { levenshteinDistanceDamerau } from "../algorithm.js";
-import { missingArgumentsEmbed, noCommandFound, youAreCooldowned, permissionDeniedEmbed } from "../embeds/dynamic/CommandManager.js";
+import { missingArgumentsEmbed, noCommandFound, youAreCooldowned, permissionDeniedEmbed, errorEmbed, commandHelpEmbed, commandListEmbed, categoriesEmbed } from "../embeds/dynamic/CommandManager.js";
 import { readdir } from "node:fs/promises";
 import CooldownManager from "./CooldownManager.js";
 import { ApplicationCommandOptionType, GuildMember, PermissionsBitField } from "discord.js";
@@ -72,7 +72,7 @@ export default class CommandManager {
             const res = this.lookALikeCommand(commandName);
             const embeds = [noCommandFound(client, commandName, res)];
             if (commandExecutor.isInteraction())
-                return commandExecutor.reply({ embeds, flags: "Ephemeral" });
+                return commandExecutor.reply({ embeds, ephemeral: true });
             else if (commandExecutor.isMessage())
                 return commandExecutor.reply({ embeds }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
             return;
@@ -104,6 +104,27 @@ export default class CommandManager {
         return command.execute(commandExecutor);
     }
     ;
+    async getCommandHelp(client, commandName) {
+        const command = this.getCommand(commandName);
+        if (!command) {
+            const suggestions = this.lookALikeCommand(commandName);
+            return noCommandFound(client, commandName, suggestions);
+        }
+        return commandHelpEmbed(client, command);
+    }
+    async listCommands(client, category) {
+        if (category) {
+            return commandListEmbed(client, this.commands, category);
+        }
+        // If no category specified, return categories list
+        const categories = [...new Set(Array.from(this.commands.values())
+                .map(cmd => cmd.options?.category || "Uncategorized"))];
+        return categoriesEmbed(client, categories);
+    }
+    handleCommandError(client, error, command) {
+        this.client.logger.error(`Command execution error${command ? ` for ${command}` : ''}:`, error);
+        return errorEmbed(client, "Command Error", `An error occurred while executing the command${command ? ` \`${command}\`` : ''}.\n\n${error.message}`);
+    }
     async checkPermissions(command, cmdExecutor) {
         if (!command.options?.permissions)
             return true;

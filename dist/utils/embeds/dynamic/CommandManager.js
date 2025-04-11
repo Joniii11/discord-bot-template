@@ -2,10 +2,19 @@ import { ApplicationCommandOptionType, Colors, EmbedBuilder } from "discord.js";
 export function noCommandFound(client, commandName, lookALikeCommand) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle("❌ Command Not Found")
-        .setDescription(`I couldn't find the command \`${commandName}\`. ${!lookALikeCommand || lookALikeCommand.length === 0
-        ? ""
-        : `Did you mean \`${lookALikeCommand[0]}\`?`}`)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.noCommandFound.title" }))
+        .setDescription(client.manager.t({
+        key: "embeds.commandManager.noCommandFound.description",
+        replacements: {
+            command: commandName,
+            suggestion: (!lookALikeCommand || lookALikeCommand.length === 0)
+                ? ""
+                : client.manager.t({
+                    key: "embeds.commandManager.noCommandFound.suggestion",
+                    replacements: { command: lookALikeCommand[0] }
+                })
+        }
+    }))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
         text: client.user?.username ?? "Made by Joniii",
@@ -14,29 +23,41 @@ export function noCommandFound(client, commandName, lookALikeCommand) {
         .setTimestamp();
     return embed;
 }
-;
 export function youAreCooldowned(client, remaining) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(":x: You are on cooldown!")
-        .setDescription(`You need to wait **${remaining} seconds** before you can use this command again.`)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.cooldown.title" }))
+        .setDescription(client.manager.t({
+        key: "embeds.commandManager.cooldown.description",
+        replacements: { seconds: remaining.toString() }
+    }))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
         text: client.user?.username ?? "Made by Joniii",
     })
         .setThumbnail(client.user?.avatarURL() ?? "")
         .setTimestamp()
-        .addFields({ name: "Please be patient!", value: "Try again later.", inline: true });
+        .addFields({
+        name: client.manager.t({ key: "embeds.commandManager.cooldown.fieldName" }),
+        value: client.manager.t({ key: "embeds.commandManager.cooldown.fieldValue" }),
+        inline: true
+    });
     return embed;
 }
 export function missingArgumentsEmbed(client, missingArguments) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(":x: Missing Required Arguments")
-        .setDescription("It seems you've forgotten to provide some necessary arguments.")
+        .setTitle(client.manager.t({ key: "embeds.commandManager.missingArguments.title" }))
+        .setDescription(client.manager.t({ key: "embeds.commandManager.missingArguments.description" }))
         .addFields(missingArguments.map(arg => ({
-        name: `Missing Argument: \`${arg.name}\``,
-        value: `Type: \`${LOOKUP_TABLE[arg.type]}\``,
+        name: client.manager.t({
+            key: "embeds.commandManager.missingArguments.argName",
+            replacements: { name: arg.name }
+        }),
+        value: client.manager.t({
+            key: "embeds.commandManager.missingArguments.argType",
+            replacements: { type: LOOKUP_TABLE[arg.type] }
+        }),
         inline: true,
     })))
         .setFooter({
@@ -50,7 +71,7 @@ export function missingArgumentsEmbed(client, missingArguments) {
 export function permissionDeniedEmbed(client, reason) {
     return new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle("❌ Permission Denied")
+        .setTitle(client.manager.t({ key: "embeds.commandManager.permissionDenied.title" }))
         .setDescription(reason)
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
@@ -62,7 +83,7 @@ export function commandHelpEmbed(client, command) {
     const options = command.data.toJSON().options || [];
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle(`Command: ${command.data.name}`)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.commandHelp.title", replacements: { command: command.data.name } }))
         .setDescription(command.data.description)
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
@@ -70,22 +91,40 @@ export function commandHelpEmbed(client, command) {
     })
         .setTimestamp();
     if (command.options?.aliases?.length) {
-        embed.addFields({ name: "Aliases", value: command.options.aliases.map(a => `\`${a}\``).join(", "), inline: true });
+        embed.addFields({
+            name: client.manager.t({ key: "embeds.commandManager.commandHelp.aliases" }),
+            value: command.options.aliases.map(a => `\`${a}\``).join(", "),
+            inline: true
+        });
     }
     if (command.options?.cooldown) {
-        embed.addFields({ name: "Cooldown", value: `${command.options.cooldown} seconds`, inline: true });
+        embed.addFields({
+            name: client.manager.t({ key: "embeds.commandManager.commandHelp.cooldown" }),
+            value: `${command.options.cooldown} seconds`,
+            inline: true
+        });
     }
-    embed.addFields({ name: "Category", value: command.options?.category || "Uncategorized", inline: true });
+    embed.addFields({
+        name: client.manager.t({ key: "embeds.commandManager.commandHelp.category" }),
+        value: command.options?.category || client.manager.t({ key: "embeds.commandManager.commandHelp.uncategorized" }),
+        inline: true
+    });
     if (options.length > 0) {
         const requiredOptions = options.filter(opt => opt.required);
         const optionalOptions = options.filter(opt => !opt.required);
         if (requiredOptions.length > 0) {
             const requiredText = requiredOptions.map(opt => `\`${opt.name}\` (${LOOKUP_TABLE[opt.type]}): ${opt.description}`).join('\n');
-            embed.addFields({ name: "Required Arguments", value: requiredText });
+            embed.addFields({
+                name: client.manager.t({ key: "embeds.commandManager.commandHelp.requiredArguments" }),
+                value: requiredText
+            });
         }
         if (optionalOptions.length > 0) {
             const optionalText = optionalOptions.map(opt => `\`${opt.name}\` (${LOOKUP_TABLE[opt.type]}): ${opt.description}`).join('\n');
-            embed.addFields({ name: "Optional Arguments", value: optionalText });
+            embed.addFields({
+                name: client.manager.t({ key: "embeds.commandManager.commandHelp.optionalArguments" }),
+                value: optionalText
+            });
         }
     }
     return embed;
@@ -100,10 +139,12 @@ export function commandHelpEmbed(client, command) {
 export function commandListEmbed(client, commands, category) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle(category ? `${category} Commands` : 'All Commands')
+        .setTitle(category
+        ? client.manager.t({ key: "embeds.commandManager.commandList.categoryTitle", replacements: { category } })
+        : client.manager.t({ key: "embeds.commandManager.commandList.allCommandsTitle" }))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
-        text: `Use ${client.config.prefix}help [command] for details about a command`,
+        text: client.manager.t({ key: "embeds.commandManager.commandList.footer", replacements: { prefix: client.config.prefix } }),
     })
         .setTimestamp();
     // Filter by category if specified
@@ -111,7 +152,7 @@ export function commandListEmbed(client, commands, category) {
         ? Array.from(commands.values()).filter(cmd => cmd.options?.category === category)
         : Array.from(commands.values());
     if (filteredCommands.length === 0) {
-        embed.setDescription("No commands found in this category.");
+        embed.setDescription(client.manager.t({ key: "embeds.commandManager.commandList.noCommands" }));
         return embed;
     }
     const commandList = filteredCommands.map(cmd => {
@@ -165,8 +206,8 @@ export function errorEmbed(client, title, description) {
 export function categoriesEmbed(client, categories) {
     return new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle("Command Categories")
-        .setDescription(`Use \`${client.config.prefix}help <category>\` to view commands in a category.\n\n` +
+        .setTitle(client.manager.t({ key: "embeds.commandManager.categories.title" }))
+        .setDescription(client.manager.t({ key: "embeds.commandManager.categories.description", replacements: { prefix: client.config.prefix } }) +
         categories.map(c => `• **${c}**`).join('\n'))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
@@ -185,9 +226,16 @@ export function categoriesEmbed(client, categories) {
 export function commandStatsEmbed(client, command, usageCount, mostActiveUser) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Gold)
-        .setTitle(`Command Statistics: ${command}`)
-        .addFields({ name: "Times Used", value: usageCount.toString(), inline: true }, { name: "Global Rank", value: "#1", inline: true } // This would be dynamic in a real implementation
-    )
+        .setTitle(client.manager.t({ key: "embeds.commandManager.commandStats.title", replacements: { command } }))
+        .addFields({
+        name: client.manager.t({ key: "embeds.commandManager.commandStats.timesUsed" }),
+        value: usageCount.toString(),
+        inline: true
+    }, {
+        name: client.manager.t({ key: "embeds.commandManager.commandStats.globalRank" }),
+        value: "#1", // This would be dynamic in a real implementation
+        inline: true
+    })
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
         text: client.user?.username ?? "Made by Joniii",
@@ -195,7 +243,7 @@ export function commandStatsEmbed(client, command, usageCount, mostActiveUser) {
         .setTimestamp();
     if (mostActiveUser) {
         embed.addFields({
-            name: "Most Active User",
+            name: client.manager.t({ key: "embeds.commandManager.commandStats.mostActiveUser" }),
             value: `<@${mostActiveUser.id}> (${mostActiveUser.count} uses)`,
             inline: true
         });

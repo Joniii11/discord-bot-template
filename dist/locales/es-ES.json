@@ -1,0 +1,22 @@
+{
+  "commands": {
+    "hello": {
+      "greeting": "¡Hola!",
+      "farewell": "¡Adiós!"
+    },
+    "welcome": {
+      "message": "¡Bienvenido {{username}} a {{server}}!",
+      "alreadyMember": "¡{{username}} ya es miembro!"
+    }
+  },
+  "errors": {
+    "generic": "Se produjo un error.",
+    "notFound": "Recurso no encontrado.",
+    "permissions": "No tienes permiso para usar este comando."
+  },
+  "common": {
+    "yes": "Sí",
+    "no": "No",
+    "loading": "Cargando..."
+  }
+}

@@ -4,38 +4,51 @@ import { MissingArguments, BaseCommand } from "../../types/commandManager.js";
 
 export function noCommandFound(client: DiscordBot, commandName: string, lookALikeCommand: string[]) {
     const embed = new EmbedBuilder()
-    .setColor(Colors.Red)
-    .setTitle("❌ Command Not Found")
-    .setDescription(
-        `I couldn't find the command \`${commandName}\`. ${
-            !lookALikeCommand || lookALikeCommand.length === 0
-                ? ""
-                : `Did you mean \`${lookALikeCommand[0]}\`?`
-        }`
-    )
-    .setFooter({
-        iconURL: client.user?.avatarURL() ?? undefined,
-        text: client.user?.username ?? "Made by Joniii",
-    })
-    .setThumbnail(client.user?.avatarURL() ?? "")
-    .setTimestamp();
+        .setColor(Colors.Red)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.noCommandFound.title" }))
+        .setDescription(
+            client.manager.t({ 
+                key: "embeds.commandManager.noCommandFound.description", 
+                replacements: {
+                    command: commandName,
+                    suggestion: (!lookALikeCommand || lookALikeCommand.length === 0) 
+                        ? "" 
+                        : client.manager.t({ 
+                            key: "embeds.commandManager.noCommandFound.suggestion", 
+                            replacements: { command: lookALikeCommand[0] }
+                        })
+                }
+            })
+        )
+        .setFooter({
+            iconURL: client.user?.avatarURL() ?? undefined,
+            text: client.user?.username ?? "Made by Joniii",
+        })
+        .setThumbnail(client.user?.avatarURL() ?? "")
+        .setTimestamp();
 
     return embed;
-};
+}
+
 export function youAreCooldowned(client: DiscordBot, remaining: number) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(":x: You are on cooldown!")
-        .setDescription(`You need to wait **${remaining} seconds** before you can use this command again.`)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.cooldown.title" }))
+        .setDescription(client.manager.t({ 
+            key: "embeds.commandManager.cooldown.description",
+            replacements: { seconds: remaining.toString() }
+        }))
         .setFooter({
             iconURL: client.user?.avatarURL() ?? undefined,
             text: client.user?.username ?? "Made by Joniii",
         })
         .setThumbnail(client.user?.avatarURL() ?? "")
         .setTimestamp()
-        .addFields(
-            { name: "Please be patient!", value: "Try again later.", inline: true }
-        )
+        .addFields({
+            name: client.manager.t({ key: "embeds.commandManager.cooldown.fieldName" }),
+            value: client.manager.t({ key: "embeds.commandManager.cooldown.fieldValue" }),
+            inline: true
+        });
 
     return embed;
 }
@@ -43,11 +56,17 @@ export function youAreCooldowned(client: DiscordBot, remaining: number) {
 export function missingArgumentsEmbed(client: DiscordBot, missingArguments: MissingArguments[]): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(":x: Missing Required Arguments")
-        .setDescription("It seems you've forgotten to provide some necessary arguments.")
+        .setTitle(client.manager.t({ key: "embeds.commandManager.missingArguments.title" }))
+        .setDescription(client.manager.t({ key: "embeds.commandManager.missingArguments.description" }))
         .addFields(missingArguments.map(arg => ({
-            name: `Missing Argument: \`${arg.name}\``,
-            value: `Type: \`${LOOKUP_TABLE[arg.type]}\``,
+            name: client.manager.t({ 
+                key: "embeds.commandManager.missingArguments.argName", 
+                replacements: { name: arg.name }
+            }),
+            value: client.manager.t({ 
+                key: "embeds.commandManager.missingArguments.argType", 
+                replacements: { type: LOOKUP_TABLE[arg.type] }
+            }),
             inline: true,
         })))
         .setFooter({
@@ -63,7 +82,7 @@ export function missingArgumentsEmbed(client: DiscordBot, missingArguments: Miss
 export function permissionDeniedEmbed(client: DiscordBot, reason: string): EmbedBuilder {
     return new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle("❌ Permission Denied")
+        .setTitle(client.manager.t({ key: "embeds.commandManager.permissionDenied.title" }))
         .setDescription(reason)
         .setFooter({
             iconURL: client.user?.avatarURL() ?? undefined,
@@ -77,7 +96,7 @@ export function commandHelpEmbed(client: DiscordBot, command: BaseCommand): Embe
     
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle(`Command: ${command.data.name}`)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.commandHelp.title", replacements: { command: command.data.name } }))
         .setDescription(command.data.description)
         .setFooter({
             iconURL: client.user?.avatarURL() ?? undefined,
@@ -86,14 +105,26 @@ export function commandHelpEmbed(client: DiscordBot, command: BaseCommand): Embe
         .setTimestamp();
     
     if (command.options?.aliases?.length) {
-        embed.addFields({ name: "Aliases", value: command.options.aliases.map(a => `\`${a}\``).join(", "), inline: true });
+        embed.addFields({ 
+            name: client.manager.t({ key: "embeds.commandManager.commandHelp.aliases" }), 
+            value: command.options.aliases.map(a => `\`${a}\``).join(", "), 
+            inline: true 
+        });
     }
     
     if (command.options?.cooldown) {
-        embed.addFields({ name: "Cooldown", value: `${command.options.cooldown} seconds`, inline: true });
+        embed.addFields({ 
+            name: client.manager.t({ key: "embeds.commandManager.commandHelp.cooldown" }), 
+            value: `${command.options.cooldown} seconds`, 
+            inline: true 
+        });
     }
     
-    embed.addFields({ name: "Category", value: command.options?.category || "Uncategorized", inline: true });
+    embed.addFields({ 
+        name: client.manager.t({ key: "embeds.commandManager.commandHelp.category" }), 
+        value: command.options?.category || client.manager.t({ key: "embeds.commandManager.commandHelp.uncategorized" }), 
+        inline: true 
+    });
     
     if (options.length > 0) {
         const requiredOptions = options.filter(opt => opt.required);
@@ -103,14 +134,20 @@ export function commandHelpEmbed(client: DiscordBot, command: BaseCommand): Embe
             const requiredText = requiredOptions.map(opt => 
                 `\`${opt.name}\` (${LOOKUP_TABLE[opt.type]}): ${opt.description}`
             ).join('\n');
-            embed.addFields({ name: "Required Arguments", value: requiredText });
+            embed.addFields({ 
+                name: client.manager.t({ key: "embeds.commandManager.commandHelp.requiredArguments" }), 
+                value: requiredText 
+            });
         }
         
         if (optionalOptions.length > 0) {
             const optionalText = optionalOptions.map(opt => 
                 `\`${opt.name}\` (${LOOKUP_TABLE[opt.type]}): ${opt.description}`
             ).join('\n');
-            embed.addFields({ name: "Optional Arguments", value: optionalText });
+            embed.addFields({ 
+                name: client.manager.t({ key: "embeds.commandManager.commandHelp.optionalArguments" }), 
+                value: optionalText 
+            });
         }
     }
     
@@ -131,10 +168,12 @@ export function commandListEmbed(
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle(category ? `${category} Commands` : 'All Commands')
+        .setTitle(category 
+            ? client.manager.t({ key: "embeds.commandManager.commandList.categoryTitle", replacements: { category } }) 
+            : client.manager.t({ key: "embeds.commandManager.commandList.allCommandsTitle" }))
         .setFooter({
             iconURL: client.user?.avatarURL() ?? undefined,
-            text: `Use ${client.config.prefix}help [command] for details about a command`,
+            text: client.manager.t({ key: "embeds.commandManager.commandList.footer", replacements: { prefix: client.config.prefix } }),
         })
         .setTimestamp();
     
@@ -144,7 +183,7 @@ export function commandListEmbed(
         : Array.from(commands.values());
     
     if (filteredCommands.length === 0) {
-        embed.setDescription("No commands found in this category.");
+        embed.setDescription(client.manager.t({ key: "embeds.commandManager.commandList.noCommands" }));
         return embed;
     }
     
@@ -203,9 +242,9 @@ export function errorEmbed(client: DiscordBot, title: string, description: strin
 export function categoriesEmbed(client: DiscordBot, categories: string[]): EmbedBuilder {
     return new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle("Command Categories")
+        .setTitle(client.manager.t({ key: "embeds.commandManager.categories.title" }))
         .setDescription(
-            `Use \`${client.config.prefix}help <category>\` to view commands in a category.\n\n` +
+            client.manager.t({ key: "embeds.commandManager.categories.description", replacements: { prefix: client.config.prefix } }) +
             categories.map(c => `• **${c}**`).join('\n')
         )
         .setFooter({
@@ -231,10 +270,18 @@ export function commandStatsEmbed(
 ): EmbedBuilder {
     const embed = new EmbedBuilder()
         .setColor(Colors.Gold)
-        .setTitle(`Command Statistics: ${command}`)
+        .setTitle(client.manager.t({ key: "embeds.commandManager.commandStats.title", replacements: { command } }))
         .addFields(
-            { name: "Times Used", value: usageCount.toString(), inline: true },
-            { name: "Global Rank", value: "#1", inline: true } // This would be dynamic in a real implementation
+            { 
+                name: client.manager.t({ key: "embeds.commandManager.commandStats.timesUsed" }), 
+                value: usageCount.toString(), 
+                inline: true 
+            },
+            { 
+                name: client.manager.t({ key: "embeds.commandManager.commandStats.globalRank" }), 
+                value: "#1", // This would be dynamic in a real implementation
+                inline: true 
+            }
         )
         .setFooter({
             iconURL: client.user?.avatarURL() ?? undefined,
@@ -244,7 +291,7 @@ export function commandStatsEmbed(
         
     if (mostActiveUser) {
         embed.addFields({ 
-            name: "Most Active User", 
+            name: client.manager.t({ key: "embeds.commandManager.commandStats.mostActiveUser" }), 
             value: `<@${mostActiveUser.id}> (${mostActiveUser.count} uses)`,
             inline: true
         });

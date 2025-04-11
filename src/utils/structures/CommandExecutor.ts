@@ -209,17 +209,17 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {string | null} The value of the option, or null if not provided
    */
-  public getString(name: string, required: boolean = false): string | null {
+  public getString<Required extends boolean>(name: string, required?: Required): Required extends true ? string : string | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getString(name, required);
+      return this.interaction.options.getString(name, required) as Required extends true ? string : string | null;
     } else if (this.isMessage()) {
       const value = this.parsedArgs[name];
       if (required && (value === undefined || value === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      return value !== undefined ? String(value) : null;
+      return (value !== undefined ? String(value) : null) as Required extends true ? string : string | null;;
     }
-    return null;
+    return (null) as Required extends true ? string : string | null;;
   }
 
   /**
@@ -228,17 +228,20 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {number | null} The value of the option, or null if not provided
    */
-  public getNumber(name: string, required: boolean = false): number | null {
+  public getNumber<Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? number : number | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getNumber(name, required);
+      return this.interaction.options.getNumber(name, required as boolean) as Required extends true ? number : number | null;
     } else if (this.isMessage()) {
       const value = this.parsedArgs[name];
       if (required && (value === undefined || value === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      return value !== undefined ? Number(value) : null;
+      return (value !== undefined ? Number(value) : null) as Required extends true ? number : number | null;
     }
-    return null;
+    return null as Required extends true ? number : number | null;
   }
 
   /**
@@ -247,17 +250,20 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {number | null} The value of the option, or null if not provided
    */
-  public getInteger(name: string, required: boolean = false): number | null {
+  public getInteger<Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? number : number | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getInteger(name, required);
+      return this.interaction.options.getInteger(name, required as boolean) as Required extends true ? number : number | null;
     } else if (this.isMessage()) {
       const value = this.parsedArgs[name];
       if (required && (value === undefined || value === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      return value !== undefined ? Math.floor(Number(value)) : null;
+      return (value !== undefined ? Math.floor(Number(value)) : null) as Required extends true ? number : number | null;
     }
-    return null;
+    return null as Required extends true ? number : number | null;
   }
 
   /**
@@ -266,17 +272,20 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {boolean | null} The value of the option, or null if not provided
    */
-  public getBoolean(name: string, required: boolean = false): boolean | null {
+  public getBoolean<Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? boolean : boolean | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getBoolean(name, required);
+      return this.interaction.options.getBoolean(name, required as boolean) as Required extends true ? boolean : boolean | null;
     } else if (this.isMessage()) {
       const value = this.parsedArgs[name];
       if (required && (value === undefined || value === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      return value !== undefined ? Boolean(value) : null;
+      return (value !== undefined ? Boolean(value) : null) as Required extends true ? boolean : boolean | null;
     }
-    return null;
+    return null as Required extends true ? boolean : boolean | null;
   }
 
   /**
@@ -285,19 +294,27 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {User | null} The user, or null if not provided
    */
-  public getUser(name: string, required: boolean = false): User | null {
+  public getUser<Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? User : User | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getUser(name, required);
+      return this.interaction.options.getUser(name, required as boolean) as Required extends true ? User : User | null;
     } else if (this.isMessage()) {
       const userId = this.parsedArgs[name];
       if (required && (userId === undefined || userId === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      if (!userId) return null;
+      if (!userId) return null as Required extends true ? User : User | null;
       
-      return this.client.users.cache.get(userId) || null;
+      const user = this.client.users.cache.get(userId);
+      if (required && !user) {
+        throw new Error(`Required user '${name}' was not found`);
+      }
+      
+      return user as Required extends true ? User : User | null;
     }
-    return null;
+    return null as Required extends true ? User : User | null;
   }
 
   /**
@@ -306,19 +323,27 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {Channel | null} The channel, or null if not provided
    */
-  public getChannel(name: string, required: boolean = false): any | null {
+  public getChannel<T = any, Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? T : T | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getChannel(name, required);
+      return this.interaction.options.getChannel(name, required as boolean) as Required extends true ? T : T | null;
     } else if (this.isMessage()) {
       const channelId = this.parsedArgs[name];
       if (required && (channelId === undefined || channelId === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      if (!channelId) return null;
+      if (!channelId) return null as Required extends true ? T : T | null;
       
-      return this.client.channels.cache.get(channelId) || null;
+      const channel = this.client.channels.cache.get(channelId) as T;
+      if (required && !channel) {
+        throw new Error(`Required channel '${name}' was not found`);
+      }
+      
+      return channel as Required extends true ? T : T | null;
     }
-    return null;
+    return null as Required extends true ? T : T | null;
   }
 
   /**
@@ -327,21 +352,29 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {Role | null} The role, or null if not provided
    */
-  public getRole(name: string, required: boolean = false): any | null {
+  public getRole<T = any, Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? T : T | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getRole(name, required);
+      return this.interaction.options.getRole(name, required as boolean) as Required extends true ? T : T | null;
     } else if (this.isMessage()) {
       const roleId = this.parsedArgs[name];
       if (required && (roleId === undefined || roleId === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      if (!roleId) return null;
+      if (!roleId) return null as Required extends true ? T : T | null;
       
       // We need to get the guild from either the message or another context
       const guild = this.isMessage() ? this.message.guild : null;
-      return guild ? guild.roles.cache.get(roleId) || null : null;
+      const role = guild ? guild.roles.cache.get(roleId) as T : null;
+      if (required && !role) {
+        throw new Error(`Required role '${name}' was not found`);
+      }
+      
+      return role as Required extends true ? T : T | null;
     }
-    return null;
+    return null as Required extends true ? T : T | null;
   }
 
   /**
@@ -350,24 +383,32 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {User | Role | null} The mentionable, or null if not provided
    */
-  public getMentionable(name: string, required: boolean = false): any | null {
+  public getMentionable<T = any, Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? T : T | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getMentionable(name, required);
+      return this.interaction.options.getMentionable(name, required as boolean) as Required extends true ? T : T | null;
     } else if (this.isMessage()) {
       const mentionableId = this.parsedArgs[name];
       if (required && (mentionableId === undefined || mentionableId === null)) {
         throw new Error(`Required option '${name}' is missing`);
       }
-      if (!mentionableId) return null;
+      if (!mentionableId) return null as Required extends true ? T : T | null;
       
       // Try to get as user first, then as role
       const guild = this.isMessage() ? this.message.guild : null;
       const user = this.client.users.cache.get(mentionableId);
-      if (user) return user;
+      if (user) return user as Required extends true ? T : T | null;
       
-      return guild ? guild.roles.cache.get(mentionableId) || null : null;
+      const role = guild ? guild.roles.cache.get(mentionableId) as T : null;
+      if (required && !user && !role) {
+        throw new Error(`Required mentionable '${name}' was not found`);
+      }
+      
+      return role as Required extends true ? T : T | null;
     }
-    return null;
+    return null as Required extends true ? T : T | null;
   }
 
   /**
@@ -376,18 +417,20 @@ export default class CommandExecutor<T extends ExecutorMode> {
    * @param {boolean} [required=false] - Whether the option is required
    * @returns {Attachment | null} The attachment, or null if not provided
    */
-  public getAttachment(name: string, required: boolean = false): any | null {
+  public getAttachment<T = any, Required extends boolean = false>(
+    name: string, 
+    required?: Required
+  ): Required extends true ? T : T | null {
     if (this.isInteraction()) {
-      return this.interaction.options.getAttachment(name, required);
+      return this.interaction.options.getAttachment(name, required as boolean) as Required extends true ? T : T | null;
     } else if (this.isMessage()) {
       // Message commands don't have a good way to handle attachments via arguments
-      // but we could look at message.attachments
       if (required) {
         throw new Error("Attachments are not supported in message commands via arguments");
       }
-      return null;
+      return null as Required extends true ? T : T | null;
     }
-    return null;
+    return null as Required extends true ? T : T | null;
   }
 
   /**

@@ -18,18 +18,46 @@ export const data = commandFile({
     },
     
     execute: async (cmdExecutor) => {
+        const { client } = cmdExecutor;
         const targetUser = cmdExecutor.getUser("user") || cmdExecutor.getAuthor;
         
+        // Get user's locale or default to English
+        const locale = cmdExecutor.isInteraction() 
+            ? cmdExecutor.interaction.locale 
+            : "en-US";
+        
         const embed = new EmbedBuilder()
-            .setTitle(`User Info - ${targetUser.tag}`)
+            .setTitle(client.manager.t({ 
+                key: "commands.userinfo.title", 
+                locale, 
+                replacements: { username: targetUser.tag }
+            }))
             .setThumbnail(targetUser.displayAvatarURL({ size: 256 }))
             .addFields(
-                { name: "Username", value: targetUser.username, inline: true },
-                { name: "User ID", value: targetUser.id, inline: true },
-                { name: "Account Created", value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, inline: true }
+                { 
+                    name: client.manager.t({ key: "commands.userinfo.fields.username", locale }), 
+                    value: targetUser.username, 
+                    inline: true 
+                },
+                { 
+                    name: client.manager.t({ key: "commands.userinfo.fields.userId", locale }), 
+                    value: targetUser.id, 
+                    inline: true 
+                },
+                { 
+                    name: client.manager.t({ key: "commands.userinfo.fields.createdAt", locale }), 
+                    value: `<t:${Math.floor(targetUser.createdTimestamp / 1000)}:R>`, 
+                    inline: true 
+                }
             )
             .setColor(0x3498db)
-            .setFooter({ text: `Requested by ${cmdExecutor.getAuthor.tag}` })
+            .setFooter({ 
+                text: client.manager.t({ 
+                    key: "commands.userinfo.footer", 
+                    locale, 
+                    replacements: { username: cmdExecutor.getAuthor.tag }
+                })
+            })
             .setTimestamp();
             
         await cmdExecutor.reply({ embeds: [embed] });

@@ -3,7 +3,12 @@ import {
     missingArgumentsEmbed, 
     noCommandFound, 
     youAreCooldowned,
-    permissionDeniedEmbed 
+    permissionDeniedEmbed,
+    successEmbed,
+    errorEmbed,
+    commandHelpEmbed,
+    commandListEmbed,
+    categoriesEmbed
 } from "../embeds/dynamic/CommandManager.js";
 import CommandExecutor, { ExecutorMode } from "../structures/CommandExecutor.js";
 import DiscordBot from "../structures/DiscordBot.js"
@@ -88,7 +93,7 @@ export default class CommandManager {
             const res = this.lookALikeCommand(commandName);
             const embeds = [noCommandFound(client, commandName, res)]
 
-            if (commandExecutor.isInteraction()) return commandExecutor.reply({ embeds, flags: "Ephemeral"})
+            if (commandExecutor.isInteraction()) return commandExecutor.reply({ embeds, ephemeral: true })
             else if (commandExecutor.isMessage()) return commandExecutor.reply({ embeds }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
 
             return;
@@ -118,6 +123,41 @@ export default class CommandManager {
 
         return command.execute(commandExecutor);
     };
+
+    public async getCommandHelp(client: DiscordBot, commandName: string): Promise<EmbedBuilder> {
+        const command = this.getCommand(commandName);
+        
+        if (!command) {
+            const suggestions = this.lookALikeCommand(commandName);
+            return noCommandFound(client, commandName, suggestions);
+        }
+        
+        return commandHelpEmbed(client, command);
+    }
+
+    public async listCommands(client: DiscordBot, category?: string): Promise<EmbedBuilder> {
+        if (category) {
+            return commandListEmbed(client, this.commands, category);
+        }
+        
+        // If no category specified, return categories list
+        const categories = [...new Set(
+            Array.from(this.commands.values())
+                .map(cmd => cmd.options?.category || "Uncategorized")
+        )];
+        
+        return categoriesEmbed(client, categories);
+    }
+
+    public handleCommandError(client: DiscordBot, error: Error, command?: string): EmbedBuilder {
+        this.client.logger.error(`Command execution error${command ? ` for ${command}` : ''}:`, error);
+        
+        return errorEmbed(
+            client,
+            "Command Error",
+            `An error occurred while executing the command${command ? ` \`${command}\`` : ''}.\n\n${error.message}`
+        );
+    }
 
     private async checkPermissions(command: BaseCommand, cmdExecutor: CommandExecutor<ExecutorMode>): Promise<true | string> {
         if (!command.options?.permissions) return true;

@@ -1,4 +1,4 @@
-import { registerSlashCommands } from "../../utils/classes/interactionCommandsSync.js";
+import { registerSlashCommands } from "../../utils/helpers/interactionCommandsSync.js";
 import { eventFile } from "../../utils/types/eventTypes.js";
 
 export const data = eventFile({

@@ -14,7 +14,7 @@ export default class Manager {
     commandManager;
     cooldownManager;
     componentManager;
-    localeManager;
+    localeManager; // Make optional with ?
     constructor(client) {
         this.client = client;
         // Initialize Managers
@@ -24,18 +24,30 @@ export default class Manager {
         this.commandManager = new CommandManager(this.client);
         this.cooldownManager = new CooldownManager(this.client);
         this.componentManager = new ComponentManager(this.client);
-        this.localeManager = new LocaleManager(this.client);
+        // Only create LocaleManager if enabled in config
+        if (client.config.withLocales) {
+            this.localeManager = new LocaleManager(this.client);
+        }
     }
     ;
     async init() {
         this.client.logger.debug("Initializing the Manager...");
-        await Promise.allSettled([
+        // Array of initialization promises
+        const initPromises = [
             this.eventManager.init(),
             this.commandManager.init(),
-            this.componentManager.init(),
-            this.localeManager.init()
-        ]).catch((err) => this.client.logger.error("Error occured while initializing the Manager.", err));
-        //? Initialize the Manager
+            this.componentManager.init()
+        ];
+        // Conditionally add localeManager initialization
+        if (this.client.config.withLocales && this.localeManager) {
+            initPromises.push(this.localeManager.init());
+            this.client.logger.debug("Localization is enabled, initializing LocaleManager");
+        }
+        else {
+            this.client.logger.debug("Localization is disabled, skipping LocaleManager initialization");
+        }
+        await Promise.allSettled(initPromises)
+            .catch((err) => this.client.logger.error("Error occured while initializing the Manager.", err));
         this.client.logger.ready("Initialized the Manager!");
     }
     ;
@@ -45,4 +57,20 @@ export default class Manager {
             this.interactionManager.init()
         ]);
     }
+    /**
+     * Get a translation string - simple interface for all translations
+     * @param options - Translation options with key, replacements and locale
+     * @returns The translated string or the key itself if not found
+     */
+    t(options) {
+        // If localization is disabled, just return the key
+        if (!this.client.config.withLocales || !this.localeManager) {
+            return options.key;
+        }
+        // Get the locale from params or default
+        const usedLocale = options.locale || 'en-US';
+        // Get translation and handle replacements
+        return this.localeManager.translate(options.key, usedLocale, options.replacements);
+    }
 }
+;

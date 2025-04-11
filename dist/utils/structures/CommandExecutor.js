@@ -147,7 +147,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {string | null} The value of the option, or null if not provided
      */
-    getString(name, required = false) {
+    getString(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getString(name, required);
         }
@@ -156,9 +156,11 @@ export default class CommandExecutor {
             if (required && (value === undefined || value === null)) {
                 throw new Error(`Required option '${name}' is missing`);
             }
-            return value !== undefined ? String(value) : null;
+            return (value !== undefined ? String(value) : null);
+            ;
         }
-        return null;
+        return (null);
+        ;
     }
     /**
      * Gets a number option from command arguments
@@ -166,7 +168,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {number | null} The value of the option, or null if not provided
      */
-    getNumber(name, required = false) {
+    getNumber(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getNumber(name, required);
         }
@@ -175,7 +177,7 @@ export default class CommandExecutor {
             if (required && (value === undefined || value === null)) {
                 throw new Error(`Required option '${name}' is missing`);
             }
-            return value !== undefined ? Number(value) : null;
+            return (value !== undefined ? Number(value) : null);
         }
         return null;
     }
@@ -185,7 +187,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {number | null} The value of the option, or null if not provided
      */
-    getInteger(name, required = false) {
+    getInteger(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getInteger(name, required);
         }
@@ -194,7 +196,7 @@ export default class CommandExecutor {
             if (required && (value === undefined || value === null)) {
                 throw new Error(`Required option '${name}' is missing`);
             }
-            return value !== undefined ? Math.floor(Number(value)) : null;
+            return (value !== undefined ? Math.floor(Number(value)) : null);
         }
         return null;
     }
@@ -204,7 +206,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {boolean | null} The value of the option, or null if not provided
      */
-    getBoolean(name, required = false) {
+    getBoolean(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getBoolean(name, required);
         }
@@ -213,7 +215,7 @@ export default class CommandExecutor {
             if (required && (value === undefined || value === null)) {
                 throw new Error(`Required option '${name}' is missing`);
             }
-            return value !== undefined ? Boolean(value) : null;
+            return (value !== undefined ? Boolean(value) : null);
         }
         return null;
     }
@@ -223,7 +225,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {User | null} The user, or null if not provided
      */
-    getUser(name, required = false) {
+    getUser(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getUser(name, required);
         }
@@ -234,7 +236,11 @@ export default class CommandExecutor {
             }
             if (!userId)
                 return null;
-            return this.client.users.cache.get(userId) || null;
+            const user = this.client.users.cache.get(userId);
+            if (required && !user) {
+                throw new Error(`Required user '${name}' was not found`);
+            }
+            return user;
         }
         return null;
     }
@@ -244,7 +250,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {Channel | null} The channel, or null if not provided
      */
-    getChannel(name, required = false) {
+    getChannel(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getChannel(name, required);
         }
@@ -255,7 +261,11 @@ export default class CommandExecutor {
             }
             if (!channelId)
                 return null;
-            return this.client.channels.cache.get(channelId) || null;
+            const channel = this.client.channels.cache.get(channelId);
+            if (required && !channel) {
+                throw new Error(`Required channel '${name}' was not found`);
+            }
+            return channel;
         }
         return null;
     }
@@ -265,7 +275,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {Role | null} The role, or null if not provided
      */
-    getRole(name, required = false) {
+    getRole(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getRole(name, required);
         }
@@ -278,7 +288,11 @@ export default class CommandExecutor {
                 return null;
             // We need to get the guild from either the message or another context
             const guild = this.isMessage() ? this.message.guild : null;
-            return guild ? guild.roles.cache.get(roleId) || null : null;
+            const role = guild ? guild.roles.cache.get(roleId) : null;
+            if (required && !role) {
+                throw new Error(`Required role '${name}' was not found`);
+            }
+            return role;
         }
         return null;
     }
@@ -288,7 +302,7 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {User | Role | null} The mentionable, or null if not provided
      */
-    getMentionable(name, required = false) {
+    getMentionable(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getMentionable(name, required);
         }
@@ -304,7 +318,11 @@ export default class CommandExecutor {
             const user = this.client.users.cache.get(mentionableId);
             if (user)
                 return user;
-            return guild ? guild.roles.cache.get(mentionableId) || null : null;
+            const role = guild ? guild.roles.cache.get(mentionableId) : null;
+            if (required && !user && !role) {
+                throw new Error(`Required mentionable '${name}' was not found`);
+            }
+            return role;
         }
         return null;
     }
@@ -314,13 +332,12 @@ export default class CommandExecutor {
      * @param {boolean} [required=false] - Whether the option is required
      * @returns {Attachment | null} The attachment, or null if not provided
      */
-    getAttachment(name, required = false) {
+    getAttachment(name, required) {
         if (this.isInteraction()) {
             return this.interaction.options.getAttachment(name, required);
         }
         else if (this.isMessage()) {
             // Message commands don't have a good way to handle attachments via arguments
-            // but we could look at message.attachments
             if (required) {
                 throw new Error("Attachments are not supported in message commands via arguments");
             }

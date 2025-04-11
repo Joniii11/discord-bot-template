@@ -1,13 +1,14 @@
 import dotenv from "dotenv";
 dotenv.config();
-const envKeys = ["TOKEN", "USE_SHARDING", "SHOW_DEBUG", "PREFIX", "OWNER_IDS"];
-const { TOKEN, USE_SHARDING, SHOW_DEBUG, PREFIX, OWNER_IDS } = getSanitzedConfig(getEnvConfig());
+const envKeys = ["TOKEN", "USE_SHARDING", "SHOW_DEBUG", "PREFIX", "OWNER_IDS", "WITH_LOCALE"];
+const { TOKEN, USE_SHARDING, SHOW_DEBUG, PREFIX, OWNER_IDS, WITH_LOCALE } = getSanitzedConfig(getEnvConfig());
 export default {
     token: TOKEN,
     useSharding: parseBoolean(USE_SHARDING),
     showDebug: Boolean(SHOW_DEBUG),
     prefix: PREFIX,
-    ownerIds: parseArray(OWNER_IDS)
+    ownerIds: parseArray(OWNER_IDS),
+    withLocales: parseBoolean(WITH_LOCALE),
 };
 function parseArray(value) {
     if (!value)
