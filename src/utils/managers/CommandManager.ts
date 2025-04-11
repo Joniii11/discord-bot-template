@@ -4,7 +4,6 @@ import {
     noCommandFound, 
     youAreCooldowned,
     permissionDeniedEmbed,
-    successEmbed,
     errorEmbed,
     commandHelpEmbed,
     commandListEmbed,

@@ -75,4 +75,11 @@ export default class LocaleManager {
     getAvailableLocales() {
         return Array.from(this.locales.keys());
     }
+    /**
+     * Checks if the locale system is enabled and working
+     * @returns True if the locale system is enabled and has at least one locale loaded
+     */
+    isEnabled() {
+        return this.client.config.withLocales === true && this.locales.size > 0;
+    }
 }

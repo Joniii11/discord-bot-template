@@ -1,20 +1,93 @@
 import { ApplicationCommandOptionType, Colors, EmbedBuilder } from "discord.js";
+// Fallback translations for critical messages
+const FALLBACKS = {
+    permissionDenied: {
+        title: "Permission Denied"
+    },
+    noCommandFound: {
+        title: "Command Not Found",
+        description: "I couldn't find the command '{command}'.",
+        suggestion: "Did you mean '{command}'?"
+    },
+    cooldown: {
+        title: "You are on cooldown!",
+        description: "You need to wait {seconds} seconds before you can use this command again.",
+        fieldName: "Please be patient!",
+        fieldValue: "Try again later."
+    },
+    missingArguments: {
+        title: "Missing Required Arguments",
+        description: "It seems you've forgotten to provide some necessary arguments.",
+        argName: "Missing Argument: {name}",
+        argType: "Type: {type}"
+    },
+    commandHelp: {
+        title: "Command Help: {command}",
+        aliases: "Aliases",
+        cooldown: "Cooldown",
+        category: "Category",
+        uncategorized: "Uncategorized",
+        requiredArguments: "Required Arguments",
+        optionalArguments: "Optional Arguments"
+    },
+    commandList: {
+        categoryTitle: "{category} Commands",
+        allCommandsTitle: "All Commands",
+        footer: "Use {prefix}help [command] for details about a command",
+        noCommands: "No commands found in this category."
+    },
+    categories: {
+        title: "Command Categories",
+        description: "Use {prefix}help <category> to view commands in a category.\n\n"
+    },
+    commandStats: {
+        title: "Stats for {command}",
+        timesUsed: "Times Used",
+        globalRank: "Global Rank",
+        mostActiveUser: "Most Active User"
+    }
+};
+/**
+ * Helper function that attempts to translate text but falls back to English if translation fails
+ * @param client - Discord bot client
+ * @param key - Translation key
+ * @param replacements - Optional replacements for variables
+ * @param fallback - Fallback text if translation fails
+ * @returns Translated text or fallback
+ */
+function translateWithFallback(client, key, replacements, fallback) {
+    try {
+        // Try to use the translation system
+        if (client.manager.localeManager?.isEnabled() && client.manager.t) {
+            return client.manager.t({ key, replacements });
+        }
+    }
+    catch (error) {
+        console.warn(`Translation failed for key: ${key}`);
+    }
+    // Return the fallback text if translation fails or is disabled
+    if (fallback) {
+        // Apply replacements to fallback text if provided
+        let result = fallback;
+        if (replacements) {
+            for (const [key, value] of Object.entries(replacements)) {
+                result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
+            }
+        }
+        return result;
+    }
+    return key;
+}
 export function noCommandFound(client, commandName, lookALikeCommand) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.noCommandFound.title" }))
-        .setDescription(client.manager.t({
-        key: "embeds.commandManager.noCommandFound.description",
-        replacements: {
-            command: commandName,
-            suggestion: (!lookALikeCommand || lookALikeCommand.length === 0)
-                ? ""
-                : client.manager.t({
-                    key: "embeds.commandManager.noCommandFound.suggestion",
-                    replacements: { command: lookALikeCommand[0] }
-                })
-        }
-    }))
+        .setTitle(translateWithFallback(client, "embeds.commandManager.noCommandFound.title", {}, FALLBACKS.noCommandFound.title))
+        .setDescription(translateWithFallback(client, "embeds.commandManager.noCommandFound.description", {
+        command: commandName,
+        suggestion: (!lookALikeCommand || lookALikeCommand.length === 0)
+            ? ""
+            : translateWithFallback(client, "embeds.commandManager.noCommandFound.suggestion", { command: lookALikeCommand[0] }, FALLBACKS.noCommandFound.suggestion)
+    }, FALLBACKS.noCommandFound.description))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
         text: client.user?.username ?? "Made by Joniii",
@@ -26,11 +99,8 @@ export function noCommandFound(client, commandName, lookALikeCommand) {
 export function youAreCooldowned(client, remaining) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.cooldown.title" }))
-        .setDescription(client.manager.t({
-        key: "embeds.commandManager.cooldown.description",
-        replacements: { seconds: remaining.toString() }
-    }))
+        .setTitle(translateWithFallback(client, "embeds.commandManager.cooldown.title", {}, FALLBACKS.cooldown.title))
+        .setDescription(translateWithFallback(client, "embeds.commandManager.cooldown.description", { seconds: remaining.toString() }, FALLBACKS.cooldown.description))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
         text: client.user?.username ?? "Made by Joniii",
@@ -38,8 +108,8 @@ export function youAreCooldowned(client, remaining) {
         .setThumbnail(client.user?.avatarURL() ?? "")
         .setTimestamp()
         .addFields({
-        name: client.manager.t({ key: "embeds.commandManager.cooldown.fieldName" }),
-        value: client.manager.t({ key: "embeds.commandManager.cooldown.fieldValue" }),
+        name: translateWithFallback(client, "embeds.commandManager.cooldown.fieldName", {}, FALLBACKS.cooldown.fieldName),
+        value: translateWithFallback(client, "embeds.commandManager.cooldown.fieldValue", {}, FALLBACKS.cooldown.fieldValue),
         inline: true
     });
     return embed;
@@ -47,17 +117,11 @@ export function youAreCooldowned(client, remaining) {
 export function missingArgumentsEmbed(client, missingArguments) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.missingArguments.title" }))
-        .setDescription(client.manager.t({ key: "embeds.commandManager.missingArguments.description" }))
+        .setTitle(translateWithFallback(client, "embeds.commandManager.missingArguments.title", {}, FALLBACKS.missingArguments.title))
+        .setDescription(translateWithFallback(client, "embeds.commandManager.missingArguments.description", {}, FALLBACKS.missingArguments.description))
         .addFields(missingArguments.map(arg => ({
-        name: client.manager.t({
-            key: "embeds.commandManager.missingArguments.argName",
-            replacements: { name: arg.name }
-        }),
-        value: client.manager.t({
-            key: "embeds.commandManager.missingArguments.argType",
-            replacements: { type: LOOKUP_TABLE[arg.type] }
-        }),
+        name: translateWithFallback(client, "embeds.commandManager.missingArguments.argName", { name: arg.name }, FALLBACKS.missingArguments.argName),
+        value: translateWithFallback(client, "embeds.commandManager.missingArguments.argType", { type: LOOKUP_TABLE[arg.type] }, FALLBACKS.missingArguments.argType),
         inline: true,
     })))
         .setFooter({
@@ -71,7 +135,7 @@ export function missingArgumentsEmbed(client, missingArguments) {
 export function permissionDeniedEmbed(client, reason) {
     return new EmbedBuilder()
         .setColor(Colors.Red)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.permissionDenied.title" }))
+        .setTitle(translateWithFallback(client, "embeds.commandManager.permissionDenied.title", {}, FALLBACKS.permissionDenied.title))
         .setDescription(reason)
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
@@ -83,7 +147,7 @@ export function commandHelpEmbed(client, command) {
     const options = command.data.toJSON().options || [];
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.commandHelp.title", replacements: { command: command.data.name } }))
+        .setTitle(translateWithFallback(client, "embeds.commandManager.commandHelp.title", { command: command.data.name }, FALLBACKS.commandHelp.title))
         .setDescription(command.data.description)
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
@@ -92,21 +156,21 @@ export function commandHelpEmbed(client, command) {
         .setTimestamp();
     if (command.options?.aliases?.length) {
         embed.addFields({
-            name: client.manager.t({ key: "embeds.commandManager.commandHelp.aliases" }),
+            name: translateWithFallback(client, "embeds.commandManager.commandHelp.aliases", {}, FALLBACKS.commandHelp.aliases),
             value: command.options.aliases.map(a => `\`${a}\``).join(", "),
             inline: true
         });
     }
     if (command.options?.cooldown) {
         embed.addFields({
-            name: client.manager.t({ key: "embeds.commandManager.commandHelp.cooldown" }),
+            name: translateWithFallback(client, "embeds.commandManager.commandHelp.cooldown", {}, FALLBACKS.commandHelp.cooldown),
             value: `${command.options.cooldown} seconds`,
             inline: true
         });
     }
     embed.addFields({
-        name: client.manager.t({ key: "embeds.commandManager.commandHelp.category" }),
-        value: command.options?.category || client.manager.t({ key: "embeds.commandManager.commandHelp.uncategorized" }),
+        name: translateWithFallback(client, "embeds.commandManager.commandHelp.category", {}, FALLBACKS.commandHelp.category),
+        value: command.options?.category || translateWithFallback(client, "embeds.commandManager.commandHelp.uncategorized", {}, FALLBACKS.commandHelp.uncategorized),
         inline: true
     });
     if (options.length > 0) {
@@ -115,36 +179,29 @@ export function commandHelpEmbed(client, command) {
         if (requiredOptions.length > 0) {
             const requiredText = requiredOptions.map(opt => `\`${opt.name}\` (${LOOKUP_TABLE[opt.type]}): ${opt.description}`).join('\n');
             embed.addFields({
-                name: client.manager.t({ key: "embeds.commandManager.commandHelp.requiredArguments" }),
+                name: translateWithFallback(client, "embeds.commandManager.commandHelp.requiredArguments", {}, FALLBACKS.commandHelp.requiredArguments),
                 value: requiredText
             });
         }
         if (optionalOptions.length > 0) {
             const optionalText = optionalOptions.map(opt => `\`${opt.name}\` (${LOOKUP_TABLE[opt.type]}): ${opt.description}`).join('\n');
             embed.addFields({
-                name: client.manager.t({ key: "embeds.commandManager.commandHelp.optionalArguments" }),
+                name: translateWithFallback(client, "embeds.commandManager.commandHelp.optionalArguments", {}, FALLBACKS.commandHelp.optionalArguments),
                 value: optionalText
             });
         }
     }
     return embed;
 }
-/**
- * Creates an embed listing available commands
- * @param client - The Discord bot client
- * @param commands - Collection of commands to display
- * @param category - Optional category filter
- * @returns An embed with a list of commands
- */
 export function commandListEmbed(client, commands, category) {
     const embed = new EmbedBuilder()
         .setColor(Colors.Blue)
         .setTitle(category
-        ? client.manager.t({ key: "embeds.commandManager.commandList.categoryTitle", replacements: { category } })
-        : client.manager.t({ key: "embeds.commandManager.commandList.allCommandsTitle" }))
+        ? translateWithFallback(client, "embeds.commandManager.commandList.categoryTitle", { category }, FALLBACKS.commandList.categoryTitle)
+        : translateWithFallback(client, "embeds.commandManager.commandList.allCommandsTitle", {}, FALLBACKS.commandList.allCommandsTitle))
         .setFooter({
         iconURL: client.user?.avatarURL() ?? undefined,
-        text: client.manager.t({ key: "embeds.commandManager.commandList.footer", replacements: { prefix: client.config.prefix } }),
+        text: translateWithFallback(client, "embeds.commandManager.commandList.footer", { prefix: client.config.prefix }, FALLBACKS.commandList.footer),
     })
         .setTimestamp();
     // Filter by category if specified
@@ -152,13 +209,52 @@ export function commandListEmbed(client, commands, category) {
         ? Array.from(commands.values()).filter(cmd => cmd.options?.category === category)
         : Array.from(commands.values());
     if (filteredCommands.length === 0) {
-        embed.setDescription(client.manager.t({ key: "embeds.commandManager.commandList.noCommands" }));
+        embed.setDescription(translateWithFallback(client, "embeds.commandManager.commandList.noCommands", {}, FALLBACKS.commandList.noCommands));
         return embed;
     }
     const commandList = filteredCommands.map(cmd => {
         return `\`${cmd.data.name}\` - ${cmd.data.description}`;
     }).join('\n');
     embed.setDescription(commandList);
+    return embed;
+}
+export function categoriesEmbed(client, categories) {
+    return new EmbedBuilder()
+        .setColor(Colors.Blue)
+        .setTitle(translateWithFallback(client, "embeds.commandManager.categories.title", {}, FALLBACKS.categories.title))
+        .setDescription(translateWithFallback(client, "embeds.commandManager.categories.description", { prefix: client.config.prefix }, FALLBACKS.categories.description) +
+        categories.map(c => `• **${c}**`).join('\n'))
+        .setFooter({
+        iconURL: client.user?.avatarURL() ?? undefined,
+        text: client.user?.username ?? "Made by Joniii",
+    })
+        .setTimestamp();
+}
+export function commandStatsEmbed(client, command, usageCount, mostActiveUser) {
+    const embed = new EmbedBuilder()
+        .setColor(Colors.Gold)
+        .setTitle(translateWithFallback(client, "embeds.commandManager.commandStats.title", { command }, FALLBACKS.commandStats.title))
+        .addFields({
+        name: translateWithFallback(client, "embeds.commandManager.commandStats.timesUsed", {}, FALLBACKS.commandStats.timesUsed),
+        value: usageCount.toString(),
+        inline: true
+    }, {
+        name: translateWithFallback(client, "embeds.commandManager.commandStats.globalRank", {}, FALLBACKS.commandStats.globalRank),
+        value: "#1", // This would be dynamic in a real implementation
+        inline: true
+    })
+        .setFooter({
+        iconURL: client.user?.avatarURL() ?? undefined,
+        text: client.user?.username ?? "Made by Joniii",
+    })
+        .setTimestamp();
+    if (mostActiveUser) {
+        embed.addFields({
+            name: translateWithFallback(client, "embeds.commandManager.commandStats.mostActiveUser", {}, FALLBACKS.commandStats.mostActiveUser),
+            value: `<@${mostActiveUser.id}> (${mostActiveUser.count} uses)`,
+            inline: true
+        });
+    }
     return embed;
 }
 /**
@@ -196,59 +292,6 @@ export function errorEmbed(client, title, description) {
         text: client.user?.username ?? "Made by Joniii",
     })
         .setTimestamp();
-}
-/**
- * Creates an embed showing categories of commands
- * @param client - The Discord bot client
- * @param categories - List of command categories
- * @returns An embed showing command categories
- */
-export function categoriesEmbed(client, categories) {
-    return new EmbedBuilder()
-        .setColor(Colors.Blue)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.categories.title" }))
-        .setDescription(client.manager.t({ key: "embeds.commandManager.categories.description", replacements: { prefix: client.config.prefix } }) +
-        categories.map(c => `• **${c}**`).join('\n'))
-        .setFooter({
-        iconURL: client.user?.avatarURL() ?? undefined,
-        text: client.user?.username ?? "Made by Joniii",
-    })
-        .setTimestamp();
-}
-/**
- * Creates an embed for command statistics/usage
- * @param client - The Discord bot client
- * @param command - The command name
- * @param usageCount - Number of times the command has been used
- * @param mostActiveUser - Most active user of the command
- * @returns An embed showing command usage statistics
- */
-export function commandStatsEmbed(client, command, usageCount, mostActiveUser) {
-    const embed = new EmbedBuilder()
-        .setColor(Colors.Gold)
-        .setTitle(client.manager.t({ key: "embeds.commandManager.commandStats.title", replacements: { command } }))
-        .addFields({
-        name: client.manager.t({ key: "embeds.commandManager.commandStats.timesUsed" }),
-        value: usageCount.toString(),
-        inline: true
-    }, {
-        name: client.manager.t({ key: "embeds.commandManager.commandStats.globalRank" }),
-        value: "#1", // This would be dynamic in a real implementation
-        inline: true
-    })
-        .setFooter({
-        iconURL: client.user?.avatarURL() ?? undefined,
-        text: client.user?.username ?? "Made by Joniii",
-    })
-        .setTimestamp();
-    if (mostActiveUser) {
-        embed.addFields({
-            name: client.manager.t({ key: "embeds.commandManager.commandStats.mostActiveUser" }),
-            value: `<@${mostActiveUser.id}> (${mostActiveUser.count} uses)`,
-            inline: true
-        });
-    }
-    return embed;
 }
 const LOOKUP_TABLE = {
     [ApplicationCommandOptionType.String]: "Text",

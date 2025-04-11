@@ -14,6 +14,7 @@ The command system provides a unified way to handle both slash commands and trad
 - [Command Options](#command-options)
 - [Command Execution](#command-execution)
 - [Command Cooldowns](#command-cooldowns)
+- [Permissions](#permissions)
 - [Type Safety](#type-safety)
 
 ## Overview
@@ -325,6 +326,151 @@ export const data = commandFile({
 ```
 
 If a user tries to use the command before the cooldown expires, they'll automatically receive a cooldown message.
+
+## Permissions
+
+Commands can have permission requirements that are checked before execution. The permission system provides several ways to control who can use each command.
+
+### Setting Command Permissions
+
+You can define permissions in the command options:
+
+```typescript
+// src/commands/Admin/kick.ts
+import { SlashCommandBuilder, PermissionFlagsBits } from "discord.js";
+import { commandFile } from "../../utils/types/commandManager.js";
+
+export const data = commandFile({
+    data: new SlashCommandBuilder()
+        .setName("kick")
+        .setDescription("Kick a user from the server")
+        .addUserOption(option => 
+            option.setName("user")
+                .setDescription("The user to kick")
+                .setRequired(true))
+        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers),
+    
+    options: {
+        // Discord permission requirements
+        permissions: {
+            // Permissions the bot needs to execute the command
+            bot: ["KickMembers"],
+            // Permissions the user needs to execute the command
+            user: ["KickMembers"]
+        },
+        // Custom permission check function
+        permissionCheck: async (cmdExecutor) => {
+            // Custom logic to determine if the user can use this command
+            const member = cmdExecutor.getMember();
+            if (!member) return { allowed: false, reason: "This command can only be used in a server." };
+            
+            // Check if user is a moderator (custom role check)
+            const isModerator = member.roles.cache.some(role => 
+                role.name.toLowerCase().includes("moderator")
+            );
+            
+            return {
+                allowed: isModerator,
+                reason: isModerator ? "" : "You must be a moderator to use this command."
+            };
+        }
+    },
+    
+    execute: async (cmdExecutor) => {
+        const user = cmdExecutor.getUser("user", true);
+        await cmdExecutor.reply(`Kicking ${user.tag}...`);
+        
+        // Kick logic here...
+    }
+});
+```
+
+### Permission Types
+
+The system supports several types of permission checks:
+
+1. **Discord Permissions**: Standard Discord permission flags
+2. **Guild-Only**: Commands that can only be used in servers, not DMs
+3. **Owner-Only**: Commands that can only be used by the bot owner
+4. **Custom Permission Checks**: Functions that implement custom logic
+
+### Guild-Only and Owner-Only Commands
+
+You can restrict commands to guild channels or the bot owner:
+
+```typescript
+// src/commands/Owner/eval.ts
+export const data = commandFile({
+    data: new SlashCommandBuilder()
+        .setName("eval")
+        .setDescription("Evaluate JavaScript code"),
+    
+    options: {
+        // Only bot owner can use this command
+        ownerOnly: true
+    },
+    
+    execute: async (cmdExecutor) => {
+        // Dangerous eval command logic here...
+    }
+});
+
+// src/commands/Server/serverinfo.ts
+export const data = commandFile({
+    data: new SlashCommandBuilder()
+        .setName("serverinfo")
+        .setDescription("Get information about this server"),
+    
+    options: {
+        // Can only be used in a guild, not in DMs
+        guildOnly: true
+    },
+    
+    execute: async (cmdExecutor) => {
+        // This is guaranteed to be in a guild context
+        const guild = cmdExecutor.getGuild();
+        
+        await cmdExecutor.reply(`Server info for ${guild.name}...`);
+    }
+});
+```
+
+### Permission Error Handling
+
+When a user doesn't have permission to use a command, the system automatically sends an appropriate error message:
+
+```typescript
+// Automatic error messages are sent when:
+// - The command is owner-only and used by a non-owner
+// - The command is guild-only and used in DMs
+// - The user lacks required Discord permissions
+// - The bot lacks required Discord permissions
+// - The custom permission check returns {allowed: false}
+```
+
+You can customize these error messages in your bot configuration.
+
+### Using Permissions in Command Logic
+
+You can also check permissions during command execution:
+
+```typescript
+execute: async (cmdExecutor) => {
+    const user = cmdExecutor.getUser("user", true);
+    const targetMember = await cmdExecutor.getGuild().members.fetch(user.id);
+    
+    // Check if command user can manage this specific member
+    if (!cmdExecutor.getMember().permissions.has(PermissionFlagsBits.Administrator) && 
+        targetMember.roles.highest.position >= cmdExecutor.getMember().roles.highest.position) {
+        return cmdExecutor.reply({
+            content: "You cannot moderate members with a higher or equal role.",
+            ephemeral: true
+        });
+    }
+    
+    // Continue command execution...
+}
+```
 
 ## Type Safety
 
