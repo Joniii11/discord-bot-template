@@ -136,7 +136,7 @@ export default class ComponentManager {
     "roleSelect" | 
     "channelSelect" | 
     "mentionableSelect">(
-    interaction: any, 
+    interaction: ChannelSelectMenuInteraction | UserSelectMenuInteraction | RoleSelectMenuInteraction | StringSelectMenuInteraction | MentionableSelectMenuInteraction, 
     type: T
   ) {
     const { customId, user } = interaction;

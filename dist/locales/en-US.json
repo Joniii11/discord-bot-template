@@ -1,0 +1,8 @@
+{
+  "common": {
+    "yes": "Yes",
+    "no": "No",
+    "error": "Error",
+    "success": "Success"
+  }
+}

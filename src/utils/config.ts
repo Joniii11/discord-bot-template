@@ -2,15 +2,26 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
-const envKeys = ["TOKEN", "USE_SHARDING", "SHOW_DEBUG", "PREFIX"] as const;
-const { TOKEN, USE_SHARDING, SHOW_DEBUG, PREFIX } = getSanitzedConfig(getEnvConfig());
+const envKeys = ["TOKEN", "USE_SHARDING", "SHOW_DEBUG", "PREFIX", "OWNER_IDS"] as const;
+const { TOKEN, USE_SHARDING, SHOW_DEBUG, PREFIX, OWNER_IDS } = getSanitzedConfig(getEnvConfig());
 
 export default {
     token: TOKEN,
     useSharding: parseBoolean(USE_SHARDING),
     showDebug: Boolean(SHOW_DEBUG),
-    prefix: PREFIX
+    prefix: PREFIX,
+    ownerIds: parseArray(OWNER_IDS)
 };
+
+function parseArray(value: string | string[] | undefined) {
+  if (!value) return [];
+
+  if (typeof value === "string") {
+    value = value.split(",").map((v) => v.trim());
+  }
+
+  return value;
+}
 
 function parseBoolean(value: string | boolean | undefined) {
   if (!value) return false;

@@ -18,6 +18,7 @@ A powerful, TypeScript-based Discord bot template using the latest Discord.js v1
   - Command cooldowns
   - Command categories
   - Command aliases
+  - Permissions system
 - **Component System**
   - Type-safe button interactions
   - Select menus (string, user, role, channel)
@@ -25,6 +26,8 @@ A powerful, TypeScript-based Discord bot template using the latest Discord.js v1
   - Pattern-based custom ID matching
   - Component cooldowns
 - **Event System** - Type-safe event handling
+- **Localization** - Multi-language support
+- **Helpers** - Utility functions like pagination
 - **Logging** - Beautiful console logging with colors
 - **Configuration** - Easy setup via environment variables
 

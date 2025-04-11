@@ -1,8 +1,8 @@
 import { levenshteinDistanceDamerau } from "../algorithm.js";
-import { missingArgumentsEmbed, noCommandFound, youAreCooldowned } from "../embeds/dynamic/CommandManager.js";
+import { missingArgumentsEmbed, noCommandFound, youAreCooldowned, permissionDeniedEmbed } from "../embeds/dynamic/CommandManager.js";
 import { readdir } from "node:fs/promises";
 import CooldownManager from "./CooldownManager.js";
-import { ApplicationCommandOptionType } from "discord.js";
+import { ApplicationCommandOptionType, GuildMember, PermissionsBitField } from "discord.js";
 export default class CommandManager {
     commands = new Map();
     client;
@@ -65,17 +65,12 @@ export default class CommandManager {
         if (commandExecutor.getAuthor.bot)
             return;
         const { commandName, client, getAuthor } = commandExecutor;
-        // Don't process empty command names
-        if (!commandName || commandName.trim() === "") {
-            client.logger.debug("Empty command name received, ignoring");
+        if (!commandName || commandName.trim() === "")
             return;
-        }
-        client.logger.debug(`Attempting to run command: ${commandName}`);
         const command = this.getCommand(commandName);
         if (!command) {
             const res = this.lookALikeCommand(commandName);
             const embeds = [noCommandFound(client, commandName, res)];
-            client.logger.debug(`Command not found: ${commandName}, suggested: [${res.join(", ")}]`);
             if (commandExecutor.isInteraction())
                 return commandExecutor.reply({ embeds, flags: "Ephemeral" });
             else if (commandExecutor.isMessage())
@@ -83,11 +78,8 @@ export default class CommandManager {
             return;
         }
         ;
-        // Skip slash-only commands for message commands
-        if (commandExecutor.isMessage() && command.options?.slashOnly) {
-            client.logger.debug(`Skipping slash-only command attempted via message: ${commandName}`);
+        if (commandExecutor.isMessage() && command.options?.slashOnly)
             return;
-        }
         if (command.options?.cooldown && command.options?.cooldown !== 0) {
             const isCooldowned = this.cooldownManager.applyCooldown(commandName, getAuthor.id, command.options.cooldown);
             if (isCooldowned.isCooldowned && commandExecutor.isInteraction())
@@ -96,17 +88,107 @@ export default class CommandManager {
                 return commandExecutor.reply({ embeds: [youAreCooldowned(client, isCooldowned.remaining)] }).then((msg) => setTimeout(async () => msg.deletable ? msg.delete() : null, 15000));
         }
         ;
-        // Process arguments for message commands
-        if (commandExecutor.isMessage()) {
-            if (this.handleArgs(command, commandExecutor)) {
-                client.logger.debug(`Argument handling error for command: ${commandName}`);
-                return;
-            }
+        // Check permissions before executing
+        const permissionResult = await this.checkPermissions(command, commandExecutor);
+        if (permissionResult !== true) {
+            return commandExecutor.reply({
+                embeds: [permissionDeniedEmbed(client, permissionResult)],
+                ephemeral: true
+            });
         }
-        client.logger.debug(`Executing command: ${commandName}`);
+        if (commandExecutor.isMessage()) {
+            if (await this.handleArgs(command, commandExecutor))
+                return;
+        }
+        ;
         return command.execute(commandExecutor);
     }
     ;
+    async checkPermissions(command, cmdExecutor) {
+        if (!command.options?.permissions)
+            return true;
+        const { permissions } = command.options;
+        // Owner only check
+        if (permissions.ownerOnly && !this.client.config.ownerIds.includes(cmdExecutor.getAuthor.id)) {
+            return "This command can only be used by the bot owner.";
+        }
+        // Guild only check
+        if (permissions.guildOnly) {
+            if (cmdExecutor.isMessage() && !cmdExecutor.message.guild) {
+                return "This command can only be used in servers.";
+            }
+            else if (cmdExecutor.isInteraction() && !cmdExecutor.interaction.guild) {
+                return "This command can only be used in servers.";
+            }
+        }
+        // DM only check
+        if (permissions.dmOnly) {
+            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                return "This command can only be used in direct messages.";
+            }
+            else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                return "This command can only be used in direct messages.";
+            }
+        }
+        // Role checks
+        if (permissions.roleIds && permissions.roleIds.length > 0) {
+            let hasRole = false;
+            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                const member = cmdExecutor.message.member;
+                if (member && typeof member.roles !== 'string' && member.roles.cache) {
+                    hasRole = member.roles.cache.some(r => permissions.roleIds.includes(r.id));
+                }
+            }
+            else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                const member = cmdExecutor.interaction.member;
+                if (member && typeof member !== 'string' && member instanceof GuildMember) {
+                    hasRole = member.roles.cache.some(r => permissions.roleIds.includes(r.id));
+                }
+            }
+            if (!hasRole) {
+                return "You don't have the required role to use this command.";
+            }
+        }
+        // User permission checks
+        if (permissions.userPermissions && permissions.userPermissions.length > 0) {
+            let hasPermission = false;
+            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                const member = cmdExecutor.message.member;
+                if (member && member.permissions instanceof PermissionsBitField) {
+                    hasPermission = member.permissions.has(permissions.userPermissions);
+                }
+            }
+            else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                const member = cmdExecutor.interaction.member;
+                if (member && typeof member !== 'string' && member instanceof GuildMember) {
+                    hasPermission = member.permissions.has(permissions.userPermissions);
+                }
+            }
+            if (!hasPermission) {
+                return `You need the following permissions to use this command: ${permissions.userPermissions.join(", ")}`;
+            }
+        }
+        // Bot permission checks
+        if (permissions.botPermissions && permissions.botPermissions.length > 0) {
+            let hasPermission = false;
+            if (cmdExecutor.isMessage() && cmdExecutor.message.guild) {
+                const botMember = cmdExecutor.message.guild.members.me;
+                if (botMember && botMember.permissions instanceof PermissionsBitField) {
+                    hasPermission = botMember.permissions.has(permissions.botPermissions);
+                }
+            }
+            else if (cmdExecutor.isInteraction() && cmdExecutor.interaction.guild) {
+                const botMember = cmdExecutor.interaction.guild.members.me;
+                if (botMember && botMember.permissions instanceof PermissionsBitField) {
+                    hasPermission = botMember.permissions.has(permissions.botPermissions);
+                }
+            }
+            if (!hasPermission) {
+                return `I need the following permissions to execute this command: ${permissions.botPermissions.join(", ")}`;
+            }
+        }
+        return true;
+    }
     get getCommands() {
         return this.commands;
     }
@@ -148,48 +230,40 @@ export default class CommandManager {
         return candidate;
     }
     ;
-    handleArgs(command, commandExecutor) {
+    async handleArgs(command, commandExecutor) {
         const commandArguments = command.data.toJSON().options;
         if (!commandArguments || commandArguments.length === 0 || !commandExecutor.isMessage()) {
             return false;
         }
-        // Create a structured object to store processed arguments by name
         const processedArgs = {};
         const missingArguments = [];
         let currentArgIndex = 0;
         const userArgs = commandExecutor.arguments || [];
-        // Process required arguments first, then optional ones
         const requiredArgs = commandArguments.filter(arg => arg.required);
         const optionalArgs = commandArguments.filter(arg => !arg.required);
         const allArgsInOrder = [...requiredArgs, ...optionalArgs];
-        // Process each argument definition
         for (const arg of allArgsInOrder) {
-            // Skip if we've run out of user-provided arguments and this arg is optional
             if (currentArgIndex >= userArgs.length && !arg.required) {
                 continue;
             }
-            // Check if we've run out of user arguments but still have required ones
             if (currentArgIndex >= userArgs.length && arg.required) {
                 missingArguments.push({ type: arg.type, name: arg.name });
                 continue;
             }
             const currentArg = userArgs[currentArgIndex];
             try {
-                // Process different argument types
                 switch (arg.type) {
                     case ApplicationCommandOptionType.Boolean:
-                        // Convert to boolean
                         processedArgs[arg.name] = currentArg?.toLowerCase() === 'true' ||
                             currentArg?.toLowerCase() === 'yes' ||
                             currentArg === '1';
                         currentArgIndex++;
                         break;
                     case ApplicationCommandOptionType.Channel:
-                        // Extract channel ID from mention
                         const channelMatch = currentArg.match(/<#(\d+)>/);
                         const channelId = channelMatch ? channelMatch[1] : currentArg;
-                        // Validate the channel exists if required
-                        const channel = commandExecutor.client.channels.cache.get(channelId);
+                        const isValidChannelId = /^\d{17,20}$/.test(channelId);
+                        const channel = isValidChannelId ? commandExecutor.client.channels.cache.get(channelId) : null;
                         if (!channel && arg.required) {
                             missingArguments.push({ type: ApplicationCommandOptionType.Channel, name: arg.name });
                             currentArgIndex++;
@@ -200,14 +274,12 @@ export default class CommandManager {
                         break;
                     case ApplicationCommandOptionType.Integer:
                     case ApplicationCommandOptionType.Number:
-                        // Convert to number and validate
                         const numValue = Number(currentArg);
                         if (isNaN(numValue) && arg.required) {
                             missingArguments.push({ type: arg.type, name: arg.name });
                             currentArgIndex++;
                             continue;
                         }
-                        // Check min/max if specified
                         if ('min_value' in arg && numValue < arg.min_value) {
                             missingArguments.push({ type: arg.type, name: arg.name });
                             currentArgIndex++;
@@ -222,21 +294,16 @@ export default class CommandManager {
                         currentArgIndex++;
                         break;
                     case ApplicationCommandOptionType.String:
-                        // For strings, collect all remaining arguments if this is the last required argument
                         let stringValue;
-                        // Check if it's the last required argument
                         const isLastRequiredArg = requiredArgs.indexOf(arg) === requiredArgs.length - 1;
                         if (isLastRequiredArg && arg === allArgsInOrder[allArgsInOrder.length - 1]) {
-                            // If last argument overall, take all remaining args
                             stringValue = userArgs.slice(currentArgIndex).join(" ");
-                            currentArgIndex = userArgs.length; // Consume all remaining arguments
+                            currentArgIndex = userArgs.length;
                         }
                         else {
-                            // Otherwise just take one argument
                             stringValue = currentArg;
                             currentArgIndex++;
                         }
-                        // Validate string
                         if (arg.choices && arg.choices.length > 0) {
                             const validChoices = arg.choices.map(c => c.value);
                             if (!validChoices.includes(stringValue.toLowerCase()) && arg.required) {
@@ -267,11 +334,19 @@ export default class CommandManager {
                         processedArgs[arg.name] = stringValue;
                         break;
                     case ApplicationCommandOptionType.User:
-                        // Extract user ID from mention
                         const userMatch = currentArg.match(/<@!?(\d+)>/);
                         const userId = userMatch ? userMatch[1] : currentArg;
-                        // Try to resolve the user if required
-                        if (arg.required && !userId.match(/^\d+$/)) {
+                        const isValidUserId = /^\d{17,20}$/.test(userId);
+                        let user = null;
+                        if (isValidUserId) {
+                            try {
+                                user = await commandExecutor.client.users.fetch(userId).catch(() => null);
+                            }
+                            catch (err) {
+                                // Failed to fetch user
+                            }
+                        }
+                        if (arg.required && !user) {
                             missingArguments.push({ type: arg.type, name: arg.name });
                             currentArgIndex++;
                             continue;
@@ -280,11 +355,19 @@ export default class CommandManager {
                         currentArgIndex++;
                         break;
                     case ApplicationCommandOptionType.Role:
-                        // Extract role ID from mention
                         const roleMatch = currentArg.match(/<@&(\d+)>/);
                         const roleId = roleMatch ? roleMatch[1] : currentArg;
-                        // Try to resolve the role if required
-                        if (arg.required && !roleId.match(/^\d+$/)) {
+                        const isValidRoleId = /^\d{17,20}$/.test(roleId);
+                        let role = null;
+                        if (isValidRoleId && commandExecutor.message?.guild) {
+                            try {
+                                role = await commandExecutor.message.guild.roles.fetch(roleId).catch(() => null);
+                            }
+                            catch (err) {
+                                // Failed to fetch role
+                            }
+                        }
+                        if (arg.required && !role) {
                             missingArguments.push({ type: arg.type, name: arg.name });
                             currentArgIndex++;
                             continue;
@@ -292,27 +375,21 @@ export default class CommandManager {
                         processedArgs[arg.name] = roleId;
                         currentArgIndex++;
                         break;
-                    // Add cases for other types as needed
                     default:
-                        // Skip unknown argument types
                         currentArgIndex++;
                         continue;
                 }
             }
             catch (error) {
-                // If any error occurs during processing, mark as missing argument
                 missingArguments.push({ type: arg.type, name: arg.name });
                 currentArgIndex++;
                 continue;
             }
         }
-        // If any required arguments are missing, show error message
         if (missingArguments.length > 0) {
             return commandExecutor.reply({ embeds: [missingArgumentsEmbed(commandExecutor.client, missingArguments)] });
         }
-        // Set parsed arguments on the executor for later use
         commandExecutor.parsedArgs = processedArgs;
-        // Return false to indicate no error and processing can continue
         return false;
     }
 }

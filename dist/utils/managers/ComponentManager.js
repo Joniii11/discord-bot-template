@@ -65,7 +65,6 @@ export default class ComponentManager {
             this.client.logger.error(`Failed to load component file ${folder}/${file}`, error);
         }
     }
-    // ... existing code ...
     async handleInteraction(interaction) {
         if (interaction.isButton()) {
             return this._handleButtonInteraction(interaction);
@@ -152,8 +151,18 @@ export default class ComponentManager {
             }
         }
         try {
-            // Execute the component handler
-            await component.execute(this.client, interaction);
+            // For pattern components, extract parameters from customId
+            if ('idPattern' in component) {
+                const matches = component.idPattern.exec(interaction.customId);
+                // Extract all capturing groups as string array (skip the first full match)
+                const params = matches ? matches.slice(1) : [];
+                // Execute with extracted parameters
+                await component.execute(this.client, interaction, params);
+            }
+            else {
+                // Regular component without pattern
+                await component.execute(this.client, interaction);
+            }
         }
         catch (error) {
             this.client.logger.error(`Error executing component ${component.id}:`, error);
@@ -198,6 +207,7 @@ export default class ComponentManager {
             return undefined;
         if (type && component.type !== type)
             return undefined;
+        // After type check, we can safely cast component to the expected type
         return component;
     }
 }

@@ -1,4 +1,16 @@
 import { ActionRowBuilder } from "discord.js";
+/**
+ * Factory function for creating components with exact ID matching
+ */
+export function createComponent(component) {
+    return component;
+}
+/**
+ * Factory function for creating pattern-based components
+ */
+export function createPatternComponent(component) {
+    return component;
+}
 // Component registration helpers
 export function buttonComponent(options) {
     return {
@@ -25,23 +37,11 @@ export function modalComponent(options) {
     };
 }
 // Pattern-based component registrations
-export function buttonPattern(options) {
-    return {
-        id: options.idPattern.toString(),
-        idPattern: options.idPattern,
-        type: "button",
-        execute: options.execute,
-        options: options.options
-    };
+export function buttonPattern(component) {
+    return { ...component, type: "button" };
 }
-export function selectMenuPattern(options) {
-    return {
-        id: options.idPattern.toString(),
-        idPattern: options.idPattern,
-        type: "stringSelect",
-        execute: options.execute,
-        options: options.options
-    };
+export function stringSelectPattern(component) {
+    return { ...component, type: "stringSelect" };
 }
 export function modalPattern(options) {
     return {

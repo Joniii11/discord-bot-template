@@ -3,11 +3,32 @@ import {
   ApplicationCommandChoicesData,
   ApplicationCommandOptionType,
   ModalSubmitInteractionCollectorOptions,
-    SlashCommandOptionsOnlyBuilder,
-    SlashCommandSubcommandBuilder,
+  PermissionsString,
+  SlashCommandOptionsOnlyBuilder,
+  SlashCommandSubcommandBuilder,
+  PermissionResolvable,
 } from "discord.js";
 import CommandExecutor, { ExecutorMode } from "../structures/CommandExecutor.js";
 import { __dirnamePop, __dirnamePopulator } from "../__dirname.js";
+
+export interface CommandPermissions {
+  userPermissions?: PermissionResolvable[];
+  botPermissions?: PermissionResolvable[];
+  ownerOnly?: boolean;
+  guildOnly?: boolean;
+  dmOnly?: boolean;
+
+  /** Specific role IDs that can use this command */
+  roleIds?: string[];
+}
+
+export interface CommandOptions {
+  cooldown?: number;
+  aliases?: string[];
+  category?: string;
+  slashOnly?: boolean;
+  permissions?: CommandPermissions;
+}
 
 export interface BaseCommand<T extends ExecutorMode = ExecutorMode> {
   name: string;
@@ -17,34 +38,9 @@ export interface BaseCommand<T extends ExecutorMode = ExecutorMode> {
   execute: (commandExecutor: CommandExecutor<T>) => Promise<unknown> | unknown;
 }
 
-export interface BaseOptions {
-  category: string;
-  cooldown: number;
-  aliases: string[];
-}
-    
-
-export interface OptionsSlash extends Omit<BaseOptions, 'aliases'> {
-  slashOnly: true;
-  messageOnly?: false;
-  aliases: never; // Slash commands don't use aliases, so force an empty array
-}
-
-export interface OptionsMsg extends BaseOptions {
-  slashOnly?: false;
-  messageOnly: true;
-}
-
-export interface OptionsBoth extends BaseOptions {
-  slashOnly?: false;
-  messageOnly?: false;
-}
-
 export interface ImportedBaseCommand {
   data: BaseCommand;
 };
-
-export type CommandOptions = OptionsMsg | OptionsSlash | OptionsBoth;
 
 export type SlashOnlyOptions = { slashOnly: true, messageOnly?: false };
 export type MessageOnlyOptions = { slashOnly?: false, messageOnly: true };

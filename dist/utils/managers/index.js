@@ -3,6 +3,7 @@ import ComponentManager from "./ComponentManager.js";
 import CooldownManager from "./CooldownManager.js";
 import EventManager from "./EventManager.js";
 import InteractionManager from "./InteractionManager.js";
+import LocaleManager from "./LocaleManager.js";
 import MessageManager from "./MessageManager.js";
 export default class Manager {
     client;
@@ -13,6 +14,7 @@ export default class Manager {
     commandManager;
     cooldownManager;
     componentManager;
+    localeManager;
     constructor(client) {
         this.client = client;
         // Initialize Managers
@@ -22,6 +24,7 @@ export default class Manager {
         this.commandManager = new CommandManager(this.client);
         this.cooldownManager = new CooldownManager(this.client);
         this.componentManager = new ComponentManager(this.client);
+        this.localeManager = new LocaleManager(this.client);
     }
     ;
     async init() {
@@ -29,7 +32,8 @@ export default class Manager {
         await Promise.allSettled([
             this.eventManager.init(),
             this.commandManager.init(),
-            this.componentManager.init()
+            this.componentManager.init(),
+            this.localeManager.init()
         ]).catch((err) => this.client.logger.error("Error occured while initializing the Manager.", err));
         //? Initialize the Manager
         this.client.logger.ready("Initialized the Manager!");
