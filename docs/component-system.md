@@ -84,10 +84,12 @@ export const data = buttonPattern({
     cooldown: 1,
     category: "Utility"
   },
-  execute: async (client, interaction: ButtonInteraction) => {
-    // Extract data from the custom ID (page_2_of_5_user_123456789)
-    const [, currentPage, totalPages, userId] = 
-      interaction.customId.match(/^page_(\d+)_of_(\d+)_user_(\d+)$/) || [];
+  // With pattern matching, the execute function receives matches array as third parameter
+  execute: async (client, interaction: ButtonInteraction, matches: string[]) => {
+    // matches contains: [full_match, group1, group2, group3, ...]
+    // For "page_2_of_5_user_123456789", matches would be:
+    // ["page_2_of_5_user_123456789", "2", "5", "123456789"]
+    const [, currentPage, totalPages, userId] = matches;
     
     // Check permissions
     if (interaction.user.id !== userId) {
@@ -286,9 +288,9 @@ For components with dynamic IDs, use pattern-based components:
 // Button with a pattern
 buttonPattern({
   idPattern: /^delete_message_(\d+)_by_(\d+)$/,
-  execute: async (client, interaction) => {
-    const [, messageId, authorId] = 
-      interaction.customId.match(/^delete_message_(\d+)_by_(\d+)$/) || [];
+  execute: async (client, interaction, matches) => {
+    // matches array contains [full_match, messageId, authorId]
+    const [, messageId, authorId] = matches;
     
     // Check permission
     if (interaction.user.id !== authorId) {
@@ -304,11 +306,11 @@ buttonPattern({
 });
 
 // Select menu with a pattern
-selectMenuPattern({
+stringSelectPattern({
   idPattern: /^quiz_(\d+)_question_(\d+)$/,
-  execute: async (client, interaction) => {
-    const [, quizId, questionId] = 
-      interaction.customId.match(/^quiz_(\d+)_question_(\d+)$/) || [];
+  execute: async (client, interaction, matches) => {
+    // matches array contains [full_match, quizId, questionId]
+    const [, quizId, questionId] = matches;
     
     // Process the answer
     const selectedAnswer = interaction.values[0];
@@ -368,7 +370,15 @@ export const data = commandFile({
 
 ## Best Practices
 
-1. **Use pattern matching** for dynamic components that need to include data in their IDs
+1. **Pattern Matching Usage** - When using patterns, remember you get an array of matches:
+   ```typescript
+   // In pattern components:
+   execute: async (client, interaction, matches) => {
+     const [fullMatch, ...captureGroups] = matches;
+     // Use captureGroups as needed
+   }
+   ```
+
 2. **Security checking** - Always verify the user has permission to use the component
 3. **Error handling** - Include try/catch blocks to gracefully handle errors
 4. **Time limits** - Remember that components expire after 24 hours in messages

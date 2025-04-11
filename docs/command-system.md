@@ -151,7 +151,7 @@ export const data = commandFile({
 
 ### Commands with Arguments
 
-For slash commands, arguments are defined using the Discord.js SlashCommandBuilder:
+For slash commands and message commands, you should use the unified argument methods for consistent handling:
 
 ```typescript
 // src/commands/Utility/userinfo.ts
@@ -168,18 +168,8 @@ export const data = commandFile({
                 .setRequired(false)),
     
     execute: async (cmdExecutor) => {
-        let user;
-        
-        if (cmdExecutor.isInteraction()) {
-            // For slash commands, get the option
-            user = cmdExecutor.interaction.options.getUser("user") || cmdExecutor.interaction.user;
-        } else {
-            // For message commands, parse the argument
-            const mentionId = cmdExecutor.arguments[0]?.match(/^<@!?(\d+)>$/)?.[1];
-            user = mentionId 
-                ? await cmdExecutor.client.users.fetch(mentionId).catch(() => cmdExecutor.message.author)
-                : cmdExecutor.message.author;
-        }
+        // Use the unified method - works for both slash and message commands
+        const user = cmdExecutor.getUser("user") || cmdExecutor.getAuthor;
         
         // Create and send user info embed
         await cmdExecutor.reply({
@@ -268,11 +258,39 @@ options: {
     // Aliases for message commands (ignored for slash-only commands)
     aliases: ["a", "alias1", "alias2"],
     
-    // If true, command is ONLY available as slash command
-    slashOnly: true,
+    // Command mode options (choose one)
+    slashOnly: true,  // Only available as a slash command
+    messageOnly: true, // Only available as a message command
     
-    // If true, command is ONLY available as message command
-    messageOnly: true,
+    // Permission settings
+    permissions: {
+        // Permissions the bot needs to execute the command
+        botPermissions: ["KickMembers", "BanMembers"],
+        
+        // Permissions the user needs to execute the command
+        userPermissions: ["KickMembers"],
+        
+        // If true, only the bot owner can use this command
+        ownerOnly: false,
+        
+        // If true, command can only be used in servers
+        guildOnly: true,
+        
+        // If true, command can only be used in DMs
+        dmOnly: false,
+        
+        // Specific role IDs that can use this command
+        roleIds: ["123456789012345678"]
+    },
+    
+    // Custom permission check function (optional)
+    permissionCheck?: async (cmdExecutor) => {
+        // Custom permission logic
+        return { 
+            allowed: true, 
+            reason: "Permission denied message if allowed is false" 
+        };
+    }
 }
 ```
 
@@ -314,8 +332,11 @@ execute: async (cmdExecutor) => {
     const enabled = cmdExecutor.getBoolean("enabled");    // Get a boolean argument
     const channel = cmdExecutor.getChannel("channel");    // Get a channel argument
     const role = cmdExecutor.getRole("role");             // Get a role argument
+    const mentionable = cmdExecutor.getMentionable("mention"); // Get a user or role
+    const attachment = cmdExecutor.getAttachment("file"); // Get an attachment (slash only)
+    const integer = cmdExecutor.getInteger("count");      // Get an integer
     
-    // You can specify if an argument is required
+    // You can specify if an argument is required with generic type parameters
     const requiredUser = cmdExecutor.getUser("user", true);  // Will throw error if missing
     
     // For message commands, these methods use the parsed arguments
@@ -324,10 +345,10 @@ execute: async (cmdExecutor) => {
     // Full access to all command options as an object
     const allOptions = cmdExecutor.getOptions();
     
-    // Additional helper methods
+    // Helper methods for context
     const member = cmdExecutor.getMember();  // GuildMember object for the command executor
     const guild = cmdExecutor.getGuild();    // The guild where the command was executed
-}
+    }
 ```
 
 The unified argument methods provide better type safety and consistent error handling:

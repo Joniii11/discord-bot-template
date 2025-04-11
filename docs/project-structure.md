@@ -9,20 +9,21 @@ discord-bot/
 ├── docs/                  # Documentation
 ├── src/                   # Source code
 │   ├── commands/          # Bot commands
-│   │   ├── Admin/         # Admin commands
+│   │   ├── General/       # General commands
+│   │   ├── Info/          # Info commands
 │   │   ├── Information/   # Information commands
-│   │   ├── Utility/       # Utility commands
-│   │   └── ...            # Other command categories
+│   │   ├── Settings/      # Settings commands
+│   │   └── Utility/       # Utility commands
 │   ├── components/        # UI component handlers
-│   │   ├── Buttons/       # Button interaction handlers
-│   │   ├── Forms/         # Modal form handlers
-│   │   └── Menus/         # Select menu handlers
+│   │   └── Utility/       # Utility components
 │   ├── events/            # Event handlers
 │   │   ├── client/        # Discord client events
 │   │   └── cluster/       # Sharding cluster events
+│   ├── locales/           # Translation files
 │   ├── utils/             # Utility code
-│   │   ├── classes/       # Utility classes
 │   │   ├── embeds/        # Discord embed templates
+│   │   │   └── dynamic/   # Dynamic embed generators
+│   │   ├── helpers/       # Helper functions
 │   │   ├── managers/      # System managers
 │   │   ├── structures/    # Core structures
 │   │   └── types/         # TypeScript type definitions
@@ -49,22 +50,18 @@ Commands are organized by category folders. Each command is a single file that e
 
 ```
 src/commands/
-├── Admin/                 # Administrative commands
-│   ├── ban.ts
-│   ├── kick.ts
-│   └── config.ts
-├── Fun/                   # Fun commands
-│   ├── 8ball.ts
-│   ├── dice.ts
-│   └── meme.ts
-├── Information/           # Information commands
+├── General/               # General commands
 │   ├── help.ts
+│   └── hello.ts
+├── Information/           # Information commands
 │   ├── serverinfo.ts
 │   └── userinfo.ts
+├── Settings/              # Settings commands
+│   ├── language.ts
+│   └── config.ts
 └── Utility/               # Utility commands
     ├── ping.ts
-    ├── avatar.ts
-    └── remind.ts
+    └── avatar.ts
 ```
 
 #### Components (`src/components/`)
@@ -73,15 +70,9 @@ Component handlers are organized by type and functionality:
 
 ```
 src/components/
-├── Buttons/               # Button interaction handlers
-│   ├── confirmButton.ts
-│   └── paginationButtons.ts
-├── Forms/                 # Modal form handlers
-│   ├── reportForm.ts
-│   └── suggestionForm.ts
-└── Menus/                 # Select menu handlers
-    ├── roleSelector.ts
-    └── helpCategorySelector.ts
+└── Utility/                # Utility component handlers
+    ├── confirmButton.ts
+    └── paginationButtons.ts
 ```
 
 #### Events (`src/events/`)
@@ -99,36 +90,46 @@ src/events/
     └── error.ts
 ```
 
+#### Locales (`src/locales/`)
+
+Localization files for multi-language support:
+
+```
+src/locales/
+├── en-US.json            # English (United States)
+├── de-DE.json            # German (Germany)
+└── fr-FR.json            # French (France)
+```
+
 #### Utilities (`src/utils/`)
 
 Utility code is organized by functionality:
 
 ```
 src/utils/
-├── classes/               # Utility classes
-│   ├── interactionCommandsSync.ts
-│   └── database.ts
 ├── embeds/                # Discord embed templates
-│   ├── errorEmbed.ts
 │   └── dynamic/           # Dynamic embed generators
 │       ├── CommandManager.ts
 │       └── helpEmbed.ts
+├── helpers/               # Helper functions
+│   ├── formatters.ts
+│   └── validators.ts
 ├── managers/              # System managers
 │   ├── CommandManager.ts
 │   ├── ComponentManager.ts
 │   ├── CooldownManager.ts
 │   ├── EventManager.ts
-│   └── index.ts
+│   ├── LocaleManager.ts
+│   ├── MessageManager.ts
+│   └── InteractionManager.ts
 ├── structures/            # Core structures
 │   ├── CommandExecutor.ts
 │   ├── DiscordBot.ts
-│   ├── Logger.ts
-│   └── ShardingManager.ts
+│   └── Logger.ts
 └── types/                 # TypeScript type definitions
     ├── commandManager.ts
     ├── componentManager.ts
-    ├── eventTypes.ts
-    └── globals.d.ts
+    └── eventTypes.ts
 ```
 
 ## Core System Files
@@ -143,36 +144,35 @@ src/utils/
 - `src/utils/structures/DiscordBot.ts` - Main bot class extending Discord.js Client
 - `src/utils/structures/CommandExecutor.ts` - Unified command execution interface
 - `src/utils/structures/Logger.ts` - Logging utility
-- `src/utils/structures/ShardingManager.ts` - Manages bot sharding
 
 ### Managers
 
-- `src/utils/managers/index.ts` - Initializes and manages all subsystems
 - `src/utils/managers/CommandManager.ts` - Loads and executes commands
 - `src/utils/managers/ComponentManager.ts` - Handles UI component interactions
-- `src/utils/managers/EventManager.ts` - Handles event registration and execution
 - `src/utils/managers/CooldownManager.ts` - Manages command cooldowns
+- `src/utils/managers/EventManager.ts` - Handles event registration and execution
+- `src/utils/managers/LocaleManager.ts` - Handles translations and localization
+- `src/utils/managers/MessageManager.ts` - Processes message commands
+- `src/utils/managers/InteractionManager.ts` - Processes interaction commands
 
-### Type Definitions
+### Localization System
 
-- `src/utils/types/commandManager.ts` - Command system types
-- `src/utils/types/componentManager.ts` - Component system types
-- `src/utils/types/eventTypes.ts` - Event system types
-- `src/utils/types/globals.d.ts` - Global type declarations
+- `src/locales/*.json` - Translation files in JSON format
+- `src/utils/managers/LocaleManager.ts` - Manages loading and using translations
 
 ## Flow of Execution
 
-1. `index.ts` initializes the sharding system
+1. `index.ts` initializes the bot
 2. `Bot.ts` creates an instance of `DiscordBot`
-3. `DiscordBot` initializes the `Manager` system
-4. `Manager` initializes all subsystems:
+3. `DiscordBot` initializes all managers:
    - `EventManager` loads event handlers
    - `CommandManager` loads commands
    - `ComponentManager` loads component handlers
-5. Once the Discord client is ready:
+   - `LocaleManager` loads translations
+4. Once the Discord client is ready:
    - `InteractionManager` and `MessageManager` are initialized
    - Commands are registered with Discord API
-6. The bot processes events, commands, and component interactions as they occur
+5. The bot processes events, commands, and component interactions as they occur
 
 ## Adding New Files
 
@@ -185,11 +185,17 @@ src/utils/
 ### Adding a New Component Handler
 
 1. Create a new file in the appropriate category folder in `src/components/`
-2. Export a component definition using one of the component functions (`buttonComponent`, `stringSelectComponent`, etc.)
+2. Export a component definition using the component factory function
 3. The component handler will be automatically loaded on bot startup
 
 ### Adding a New Event Handler
 
 1. Create a new file in the appropriate event source folder in `src/events/`
-2. Export an event definition using the `eventFile` function
+2. Export an event definition using the event factory function
 3. The event handler will be automatically loaded and registered on bot startup
+
+### Adding a New Locale
+
+1. Create a new JSON file in `src/locales/` named after the locale code (e.g., `es-ES.json`)
+2. Follow the structure of existing locale files
+3. The locale will be automatically loaded on bot startup

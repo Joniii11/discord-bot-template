@@ -123,9 +123,6 @@ export default class CommandExecutor<T extends ExecutorMode> {
         const [cmdName, ...args] = messageContent.split(/ +/);
         this.commandName = cmdName;
         (this as CommandExecutor<"message">).arguments = args ?? [];
-        
-        // Add debug log
-        options.client.logger.debug(`Extracted command: ${cmdName}, Args: [${args.join(", ")}]`);
       }
     }
 
